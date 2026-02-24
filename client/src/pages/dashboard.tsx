@@ -1,7 +1,7 @@
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, TrendingUp, DollarSign, Wallet, ArrowRight } from "lucide-react";
+import { AlertCircle, TrendingUp, DollarSign, Wallet, ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Dashboard() {
