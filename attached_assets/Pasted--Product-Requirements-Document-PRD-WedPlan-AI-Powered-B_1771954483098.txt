@@ -1,0 +1,372 @@
+# Product Requirements Document (PRD)
+
+# **WedPlan**
+
+**AI-Powered Budget Builder & True Cost Tracker for DIY Weddings**
+
+---
+
+## 1. Executive Summary
+
+**WedPlan** is an AI-powered financial planning platform for U.S. couples who are considering hiring a wedding planner but want to confidently plan their wedding themselves.
+
+Most couples don’t hire planners because they lack taste or organization — they hire planners because they lack financial clarity. Wedding pricing is fragmented, opaque, and filled with hidden costs. Quotes are hard to compare. Budget spreadsheets quickly become outdated. Small overruns snowball into five-figure surprises.
+
+WedPlan solves this by becoming the **financial intelligence layer** of the wedding:
+
+* Builds a realistic starting budget
+* Tracks spending in real time
+* Normalizes vendor proposals into true all-in costs
+* Flags overruns early
+* Suggests smart trade-offs
+
+WedPlan gives couples the confidence of a planner — without paying $8K–$15K for one.
+
+---
+
+## 2. Market Context
+
+### The U.S. Wedding Market
+
+* ~2M weddings annually in the U.S.
+* Average cost: ~$30K–$45K nationally (higher in major cities)
+* Planner fees: $5K–$20K depending on service level
+* Majority of couples attempt DIY or partial planning
+
+### Current Solutions
+
+* Google Sheets / Excel
+* Static budget templates (The Knot, Zola)
+* Full-service planners
+* Venue coordinators (limited scope)
+
+### Gap in the Market
+
+Existing tools:
+
+* Provide static budget templates
+* Do not account for regional variation
+* Do not extract vendor quote details
+* Do not normalize hidden fees
+* Do not provide real-time financial forecasting
+* Do not suggest trade-offs
+
+There is no tool that acts as:
+
+> “Your AI wedding CFO.”
+
+WedPlan fills that gap.
+
+---
+
+## 3. Target Customer
+
+### Primary Persona: The Financially Anxious DIY Couple
+
+* U.S.-based
+* Budget range: $50K–$200K
+* Guest count: 100–250
+* Likely urban or suburban
+* Professional, spreadsheet-literate
+* Debating whether to hire a planner
+
+### Psychological Profile
+
+* Overwhelmed but detail-oriented
+* Wants control
+* Nervous about hidden costs
+* Feels vendor proposals are confusing
+* Doesn’t trust “starting at” pricing
+
+### Emotional Trigger
+
+“I don’t want to regret overspending — but I also don’t want to cheap out.”
+
+WedPlan reduces that anxiety.
+
+---
+
+## 4. Core Product Pillars
+
+1. **Smart Budget Builder**
+2. **Real-Time Cost Tracking**
+3. **True Cost Quote Normalizer (AI-powered)**
+4. **Trade-Off & Risk Alert Engine**
+
+---
+
+# FEATURE 1: Smart Budget Builder
+
+---
+
+## 5. Problem
+
+Couples start with:
+
+* Arbitrary total budgets (e.g., “$80K sounds reasonable”)
+* Pinterest inspiration disconnected from pricing reality
+* No understanding of cost per guest
+* No regional pricing adjustments
+
+This creates immediate budget distortion.
+
+---
+
+## 6. Solution: Dynamic Budget Modeling
+
+WedPlan generates a realistic, location-adjusted, guest-count-driven budget.
+
+### Inputs:
+
+* Wedding location (city/state)
+* Guest count
+* Venue type
+* Season
+* Style level (Budget / Mid-range / Premium / Luxury)
+* Top 3 priorities (e.g., food, photography, florals)
+
+### Outputs:
+
+* Category allocation percentages
+* Dollar ranges (low–high realistic)
+* Per-guest cost projections
+* Recommended contingency buffer (10–15%)
+
+---
+
+## 7. Budget Dashboard
+
+### Main View Includes:
+
+* Total Target Budget
+* Committed Spend
+* Pending Quotes
+* Remaining Budget
+* Contingency Remaining
+* Risk Score (Low / Moderate / High)
+
+### Category View Includes:
+
+* Target
+* Committed
+* Variance
+* Confidence Score (based on quote completeness)
+
+---
+
+## 8. Real-Time Cost Tracking
+
+Users can:
+
+* Add vendor
+* Upload proposal
+* Enter deposits
+* Mark contract signed
+* Track payment schedule
+
+System automatically:
+
+* Updates totals
+* Tracks cash flow timeline
+* Flags when a category exceeds recommended allocation
+* Adjusts contingency buffer
+
+---
+
+# FEATURE 2: True Cost Quote Normalizer
+
+---
+
+## 9. Problem
+
+Vendor proposals:
+
+* Come in PDFs, emails, or custom formats
+* Hide fees in footnotes
+* Exclude taxes or gratuity
+* Omit overtime or rental breakdown fees
+* Structure pricing differently across vendors
+
+Couples cannot compare fairly.
+
+---
+
+## 10. Solution: AI-Powered Proposal Extraction
+
+Users upload:
+
+* PDFs
+* Screenshots
+* Email threads
+* Catering menus
+* Floral proposals
+
+AI extracts:
+
+* Line items
+* Labor
+* Rentals
+* Service charges
+* Admin fees
+* Delivery/setup
+* Travel
+* Overtime policies
+* Taxes
+
+---
+
+## 11. “True All-In Cost” Calculation
+
+WedPlan calculates:
+
+* Base price
+* Mandatory service charges
+* Estimated tax (by location)
+* Rental add-ons
+* Conditional overtime assumptions
+* Gratuity norms (optional but transparent)
+
+Then outputs:
+
+### TRUE ALL-IN COST
+
+Example:
+
+| Vendor    | Base    | Fees   | Tax    | Hidden Risk   | True Cost |
+| --------- | ------- | ------ | ------ | ------------- | --------- |
+| Caterer A | $28,000 | $6,200 | $3,100 | Overtime risk | $37,300   |
+
+This makes vendor comparisons objective.
+
+---
+
+## 12. Hidden Fee Detection
+
+WedPlan flags:
+
+* “Service charge not equal to gratuity”
+* “Labor not included in floral install”
+* “Sound equipment not included”
+* “Delivery calculated per mile”
+* “Venue requires approved rental vendor”
+
+This mimics planner-level financial scrutiny.
+
+---
+
+# FEATURE 3: Trade-Off & Risk Engine
+
+---
+
+## 13. Overrun Detection
+
+If catering exceeds target by $10K:
+
+WedPlan suggests:
+
+* Reduce guest count by X
+* Switch meal format
+* Reduce passed appetizers
+* Adjust bar tier
+* Reallocate from décor
+
+---
+
+## 14. Forecasting Engine
+
+WedPlan projects:
+
+* Final wedding total based on current patterns
+* Likely overtime risks
+* Seasonality risks
+* Payment schedule stress points
+
+Provides:
+
+* Risk score
+* Probability of exceeding total budget
+
+---
+
+# 15. Success Metrics (MVP)
+
+### Activation
+
+* % of users completing budget setup
+* % uploading at least one vendor quote
+
+### Engagement
+
+* Average vendor uploads per user
+* Weekly dashboard views
+
+### Value
+
+* % of users who detect hidden fees
+* Avg. difference between base quote and true cost
+
+### Business Metric
+
+* % of users who decide not to hire planner
+* Conversion to paid tier
+
+---
+
+# 16. Monetization Strategy
+
+### Free Tier
+
+* Budget Builder
+* Manual tracking
+* 1 vendor upload
+
+### Paid Tier ($25–$40/month)
+
+* Unlimited quote uploads
+* Hidden fee detection
+* Trade-off engine
+* Forecasting
+* Payment schedule planner
+
+---
+
+# 17. Risks
+
+* Inaccurate AI extraction
+* Regional pricing variability
+* Overpromising financial certainty
+* Legal sensitivity around contract interpretation
+
+Mitigation:
+
+* Confidence score per quote
+* Disclaimer: informational, not legal advice
+* Continuous model training
+
+---
+
+# 18. Long-Term Vision
+
+WedPlan evolves into:
+
+* Vendor marketplace integration
+* Contract redline assistant
+* Cash flow planner with bank sync
+* Financing integration
+* Wedding ROI / value analyzer
+
+Ultimately:
+
+> WedPlan becomes the default financial planning layer for U.S. weddings.
+
+---
+
+If you'd like, I can next write:
+
+• A lean MVP PRD (10-page investor version)
+• A UX wireframe outline
+• A technical architecture overview
+• A go-to-market strategy
+• Or a pitch deck narrative
+
+Just tell me which direction you want to go.
