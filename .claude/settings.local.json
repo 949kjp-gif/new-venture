@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo:*)",
+      "Bash(git remote:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(gh pr:*)"
+    ]
+  }
+}
