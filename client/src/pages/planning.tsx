@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,9 +98,103 @@ const daysUntil = Math.ceil((WEDDING_DATE.getTime() - Date.now()) / (1000 * 60 *
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Planning() {
-  const [milestones, setMilestones] = useState<Milestone[]>(INIT_MILESTONES);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [payments, setPayments] = useState<Payment[]>(INIT_PAYMENTS);
+  const { user, isDemoMode } = useAuth();
+  const useApi = !!user && !isDemoMode;
+  const seededRef = useRef(false);
+
+  // ── Milestones ───────────────────────────────────────────────────────────
+  const { data: apiMilestones = [] } = useQuery<Milestone[]>({
+    queryKey: ["/api/milestones"],
+    enabled: useApi,
+  });
+  const [localMilestones, setLocalMilestones] = useState<Milestone[]>(INIT_MILESTONES);
+  const milestones: Milestone[] = useApi ? apiMilestones : localMilestones;
+
+  const createMilestoneMutation = useMutation({
+    mutationFn: (data: object | object[]) =>
+      apiRequest("POST", "/api/milestones", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/milestones"] }),
+  });
+  const updateMilestoneMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; [k: string]: unknown }) =>
+      apiRequest("PATCH", `/api/milestones/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/milestones"] }),
+  });
+  const deleteMilestoneMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/milestones/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/milestones"] }),
+  });
+
+  // Seed milestones on first load if empty
+  useEffect(() => {
+    if (useApi && !seededRef.current && apiMilestones.length === 0) {
+      seededRef.current = true;
+      const seedData = INIT_MILESTONES.map((m, i) => ({
+        label: m.label,
+        timeframe: m.timeframe,
+        done: m.done,
+        sortOrder: i,
+      }));
+      createMilestoneMutation.mutate(seedData);
+    }
+  }, [useApi, apiMilestones.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Planning Tasks ───────────────────────────────────────────────────────
+  const { data: apiTasks = [] } = useQuery<Task[]>({
+    queryKey: ["/api/planning-tasks"],
+    enabled: useApi,
+  });
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const tasks: Task[] = useApi ? apiTasks : localTasks;
+
+  const createTaskMutation = useMutation({
+    mutationFn: (data: object) =>
+      apiRequest("POST", "/api/planning-tasks", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/planning-tasks"] }),
+  });
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; [k: string]: unknown }) =>
+      apiRequest("PUT", `/api/planning-tasks/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/planning-tasks"] }),
+  });
+  const deleteTaskMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/planning-tasks/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/planning-tasks"] }),
+  });
+
+  // ── Payments ─────────────────────────────────────────────────────────────
+  const { data: apiPayments = [] } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+    enabled: useApi,
+  });
+  const [localPayments, setLocalPayments] = useState<Payment[]>(INIT_PAYMENTS);
+  const payments: Payment[] = useApi ? apiPayments : localPayments;
+
+  const createPaymentMutation = useMutation({
+    mutationFn: (data: object | object[]) =>
+      apiRequest("POST", "/api/payments", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/payments"] }),
+  });
+  const updatePaymentMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; [k: string]: unknown }) =>
+      apiRequest("PUT", `/api/payments/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/payments"] }),
+  });
+
+  const seededPaymentsRef = useRef(false);
+  useEffect(() => {
+    if (useApi && !seededPaymentsRef.current && apiPayments.length === 0) {
+      seededPaymentsRef.current = true;
+      const seedData = INIT_PAYMENTS.map((p, i) => ({
+        date: p.date,
+        label: p.label,
+        amount: p.amount,
+        paid: p.paid,
+        sortOrder: i,
+      }));
+      createPaymentMutation.mutate(seedData as unknown as object);
+    }
+  }, [useApi, apiPayments.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New task form
   const [newTaskName, setNewTaskName] = useState("");
@@ -135,8 +232,12 @@ export default function Planning() {
   // Inline milestone date editing
   const [editingMilestoneDate, setEditingMilestoneDate] = useState<string | null>(null);
 
-  const updateMilestoneDate = (id: string, date: string) => {
-    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, targetDate: date } : m)));
+  const updateMilestoneDate = async (id: string, date: string) => {
+    if (useApi) {
+      await updateMilestoneMutation.mutateAsync({ id, targetDate: date });
+    } else {
+      setLocalMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, targetDate: date } : m)));
+    }
     setEditingMilestoneDate(null);
   };
 
@@ -144,12 +245,14 @@ export default function Planning() {
   const [addingToPhase, setAddingToPhase] = useState<string | null>(null);
   const [quickAddText, setQuickAddText] = useState("");
 
-  const addMilestoneToPhase = (tf: string) => {
+  const addMilestoneToPhase = async (tf: string) => {
     if (!quickAddText.trim()) return;
-    setMilestones((prev) => [
-      ...prev,
-      { id: Date.now().toString(), label: quickAddText.trim(), timeframe: tf, done: false },
-    ]);
+    const newMs = { label: quickAddText.trim(), timeframe: tf, done: false, sortOrder: milestones.length };
+    if (useApi) {
+      await createMilestoneMutation.mutateAsync(newMs);
+    } else {
+      setLocalMilestones((prev) => [...prev, { ...newMs, id: Date.now().toString() }]);
+    }
     setQuickAddText("");
     setAddingToPhase(null);
   };
@@ -160,55 +263,82 @@ export default function Planning() {
   const [newPayAmount, setNewPayAmount] = useState("");
   const [showAddPayment, setShowAddPayment] = useState(false);
 
-  const toggleMilestone = (id: string) => {
-    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, done: !m.done } : m)));
+  const toggleMilestone = async (id: string) => {
+    const ms = milestones.find((m) => m.id === id);
+    if (!ms) return;
+    if (useApi) {
+      await updateMilestoneMutation.mutateAsync({ id, done: !ms.done });
+    } else {
+      setLocalMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, done: !m.done } : m)));
+    }
   };
 
-  const deleteMilestone = (id: string) => {
-    setMilestones((prev) => prev.filter((m) => m.id !== id));
+  const deleteMilestone = async (id: string) => {
+    if (useApi) {
+      await deleteMilestoneMutation.mutateAsync(id);
+    } else {
+      setLocalMilestones((prev) => prev.filter((m) => m.id !== id));
+    }
   };
 
-  const addTask = () => {
+  const addTask = async () => {
     if (!newTaskName.trim()) return;
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        name: newTaskName.trim(),
-        category: newTaskCategory,
-        dueDate: newTaskDue,
-        assignee: newTaskAssignee,
-        status: "not_started",
-      },
-    ]);
+    const newTask = {
+      name: newTaskName.trim(),
+      category: newTaskCategory,
+      dueDate: newTaskDue,
+      assignee: newTaskAssignee,
+      status: "not_started" as Task["status"],
+    };
+    if (useApi) {
+      await createTaskMutation.mutateAsync(newTask);
+    } else {
+      setLocalTasks((prev) => [...prev, { ...newTask, id: Date.now().toString() }]);
+    }
     setNewTaskName("");
     setNewTaskDue("");
   };
 
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const deleteTask = async (id: string) => {
+    if (useApi) {
+      await deleteTaskMutation.mutateAsync(id);
+    } else {
+      setLocalTasks((prev) => prev.filter((t) => t.id !== id));
+    }
   };
 
-  const updateTaskStatus = (id: string, status: Task["status"]) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+  const updateTaskStatus = async (id: string, status: Task["status"]) => {
+    if (useApi) {
+      await updateTaskMutation.mutateAsync({ id, status });
+    } else {
+      setLocalTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    }
   };
 
-  const togglePayment = (id: string) => {
-    setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, paid: !p.paid } : p)));
+  const togglePayment = async (id: string) => {
+    const p = payments.find((p) => p.id === id);
+    if (!p) return;
+    if (useApi) {
+      await updatePaymentMutation.mutateAsync({ id, paid: !p.paid });
+    } else {
+      setLocalPayments((prev) => prev.map((p) => (p.id === id ? { ...p, paid: !p.paid } : p)));
+    }
   };
 
-  const addPayment = () => {
+  const addPayment = async () => {
     if (!newPayLabel.trim() || !newPayDate.trim() || !newPayAmount.trim()) return;
-    setPayments((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        date: newPayDate.trim(),
-        label: newPayLabel.trim(),
-        amount: newPayAmount.startsWith("$") ? newPayAmount.trim() : `$${newPayAmount.trim()}`,
-        paid: false,
-      },
-    ]);
+    const newP = {
+      date: newPayDate.trim(),
+      label: newPayLabel.trim(),
+      amount: newPayAmount.startsWith("$") ? newPayAmount.trim() : `$${newPayAmount.trim()}`,
+      paid: false,
+      sortOrder: payments.length,
+    };
+    if (useApi) {
+      await createPaymentMutation.mutateAsync(newP);
+    } else {
+      setLocalPayments((prev) => [...prev, { ...newP, id: Date.now().toString() }]);
+    }
     setNewPayDate("");
     setNewPayLabel("");
     setNewPayAmount("");

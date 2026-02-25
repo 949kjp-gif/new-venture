@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Shell } from "@/components/layout/Shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useGoogleDrive, type Note } from "@/hooks/use-google-drive";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Search, Trash2, HardDrive, RefreshCw, FileText,
   Tag, ChevronLeft, Check, CloudOff,
@@ -57,14 +59,55 @@ function formatDate(dateStr: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Notes() {
-  const [notes, setNotes] = useState<Note[]>(() => {
+  const { user, isDemoMode } = useAuth();
+  const useApi = !!user && !isDemoMode;
+
+  // ── Demo mode: localStorage ──────────────────────────────────────────────
+  const [localNotes, setLocalNotes] = useState<Note[]>(() => {
+    if (useApi) return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   });
+
+  // ── API mode: React Query ────────────────────────────────────────────────
+  const { data: apiNotes = [] } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+    enabled: useApi,
+    select: (data) =>
+      data.map((n: any) => ({
+        ...n,
+        createdAt: typeof n.createdAt === "string" ? n.createdAt : new Date(n.createdAt).toISOString(),
+        updatedAt: typeof n.updatedAt === "string" ? n.updatedAt : new Date(n.updatedAt).toISOString(),
+        tags: n.tags ?? [],
+      })),
+  });
+
+  const createApiMutation = useMutation({
+    mutationFn: (data: { title: string; content: string; tags: string[] }) =>
+      apiRequest("POST", "/api/notes", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+  });
+
+  const updateApiMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; title: string; content: string; tags: string[] }) =>
+      apiRequest("PUT", `/api/notes/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+  });
+
+  const deleteApiMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/notes/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notes"] }),
+  });
+
+  const notes = useApi ? apiNotes : localNotes;
+
+  const persistLocal = (updated: Note[]) => {
+    setLocalNotes(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editTitle, setEditTitle] = useState("");
@@ -72,13 +115,8 @@ export default function Notes() {
   const [editTags, setEditTags] = useState<string[]>([]);
   const [mobileView, setMobileView] = useState<"list" | "editor">("list");
   const [justSaved, setJustSaved] = useState(false);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const drive = useGoogleDrive();
-
-  // Persist notes to localStorage on every change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  }, [notes]);
 
   const selectedNote = notes.find((n) => n.id === selectedId) ?? null;
 
@@ -89,51 +127,72 @@ export default function Notes() {
       return (
         n.title.toLowerCase().includes(q) ||
         n.content.toLowerCase().includes(q) ||
-        n.tags.some((t) => t.toLowerCase().includes(q))
+        (n.tags ?? []).some((t) => t.toLowerCase().includes(q))
       );
     })
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-  // Debounced auto-save to localStorage
+  // Debounced auto-save
   const autoSave = useCallback(
     (id: string, title: string, content: string, tags: string[]) => {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
-        setNotes((prev) =>
-          prev.map((n) =>
-            n.id === id
-              ? { ...n, title, content, tags, updatedAt: new Date().toISOString() }
-              : n
-          )
-        );
-      }, 400);
+        if (useApi) {
+          updateApiMutation.mutate({ id, title, content, tags });
+        } else {
+          setLocalNotes((prev) => {
+            const updated = prev.map((n) =>
+              n.id === id
+                ? { ...n, title, content, tags, updatedAt: new Date().toISOString() }
+                : n
+            );
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            return updated;
+          });
+        }
+      }, 600);
     },
-    []
+    [useApi] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const selectNote = (note: Note) => {
     setSelectedId(note.id);
     setEditTitle(note.title);
     setEditContent(note.content);
-    setEditTags(note.tags);
+    setEditTags(note.tags ?? []);
     setMobileView("editor");
   };
 
-  const createNote = () => {
-    const note: Note = {
-      id: crypto.randomUUID(),
-      title: "",
-      content: "",
-      tags: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setNotes((prev) => [note, ...prev]);
-    selectNote(note);
+  const createNote = async () => {
+    const now = new Date().toISOString();
+    if (useApi) {
+      const note = await createApiMutation.mutateAsync({ title: "", content: "", tags: [] });
+      selectNote({
+        ...note,
+        createdAt: typeof note.createdAt === "string" ? note.createdAt : now,
+        updatedAt: typeof note.updatedAt === "string" ? note.updatedAt : now,
+        tags: note.tags ?? [],
+      });
+    } else {
+      const note: Note = {
+        id: crypto.randomUUID(),
+        title: "",
+        content: "",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      persistLocal([note, ...localNotes]);
+      selectNote(note);
+    }
   };
 
-  const deleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+  const deleteNote = async (id: string) => {
+    if (useApi) {
+      await deleteApiMutation.mutateAsync(id);
+    } else {
+      persistLocal(localNotes.filter((n) => n.id !== id));
+    }
     if (selectedId === id) {
       setSelectedId(null);
       setEditTitle("");
@@ -173,13 +232,24 @@ export default function Notes() {
     const driveNotes = await drive.loadNotes();
     if (!driveNotes) return;
     // Merge: Drive wins for overlapping IDs, keep local-only notes
-    setNotes((prev) => {
-      const driveIds = new Set(driveNotes.map((n: Note) => n.id));
-      return [
-        ...driveNotes,
-        ...prev.filter((n) => !driveIds.has(n.id)),
-      ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    });
+    if (useApi) {
+      // In API mode, create any Drive notes not already in the backend
+      const existingIds = new Set(notes.map((n) => n.id));
+      const toCreate = driveNotes.filter((n: Note) => !existingIds.has(n.id));
+      for (const n of toCreate) {
+        await createApiMutation.mutateAsync({ title: n.title, content: n.content, tags: n.tags ?? [] });
+      }
+    } else {
+      setLocalNotes((prev) => {
+        const driveIds = new Set(driveNotes.map((n: Note) => n.id));
+        const merged = [
+          ...driveNotes,
+          ...prev.filter((n) => !driveIds.has(n.id)),
+        ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        return merged;
+      });
+    }
   };
 
   return (

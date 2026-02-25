@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Shell } from "@/components/layout/Shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,14 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
-  Plus, Search, Trash2, Users, Check, X, ChevronUp, ChevronDown,
+  Plus, Search, Trash2, Users, Check, ChevronUp, ChevronDown,
   Utensils, UserCheck, UserX, Clock, FileDown, ClipboardList,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,7 @@ interface Guest {
 type SortField = "name" | "rsvp" | "table" | "side";
 type RsvpFilter = "all" | "attending" | "declined" | "pending";
 
+// Storage key for demo mode
 const STORAGE_KEY = "wedagent_guests";
 
 const RSVP_STYLES: Record<Guest["rsvp"], string> = {
@@ -67,12 +71,55 @@ function blankGuest(): Guest {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Guests() {
-  const [guests, setGuests] = useState<Guest[]>(() => {
+  const { user, isDemoMode } = useAuth();
+  const useApi = !!user && !isDemoMode;
+  const { toast } = useToast();
+
+  // ── Demo mode: localStorage ──────────────────────────────────────────────
+
+  const [localGuests, setLocalGuests] = useState<Guest[]>(() => {
+    if (useApi) return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
+
+  // ── API mode: React Query ────────────────────────────────────────────────
+
+  const { data: apiGuests = [] } = useQuery<Guest[]>({
+    queryKey: ["/api/guests"],
+    enabled: useApi,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Omit<Guest, "id">) =>
+      apiRequest("POST", "/api/guests", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/guests"] }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }: Guest) =>
+      apiRequest("PUT", `/api/guests/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/guests"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/guests/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/guests"] }),
+  });
+
+  const guests = useApi ? apiGuests : localGuests;
+
+  // ── Local helpers ────────────────────────────────────────────────────────
+
+  const persistLocal = (updated: Guest[]) => {
+    setLocalGuests(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // ── UI state ─────────────────────────────────────────────────────────────
+
   const [search, setSearch] = useState("");
   const [rsvpFilter, setRsvpFilter] = useState<RsvpFilter>("all");
   const [sortField, setSortField] = useState<SortField>("name");
@@ -82,13 +129,8 @@ export default function Guests() {
   const [isEditing, setIsEditing] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkText, setBulkText] = useState("");
-  const { toast } = useToast();
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(guests));
-  }, [guests]);
-
-  // ── Stats ──────────────────────────────────────────────────────────────────
+  // ── Stats ────────────────────────────────────────────────────────────────
 
   const totalInvited = guests.length + guests.filter((g) => g.plusOne).length;
   const attending = guests.filter((g) => g.rsvp === "attending").length;
@@ -96,7 +138,7 @@ export default function Guests() {
   const pending = guests.filter((g) => g.rsvp === "pending").length;
   const dietaryCount = guests.filter((g) => g.dietary.trim()).length;
 
-  // ── Filtering & sorting ────────────────────────────────────────────────────
+  // ── Filtering & sorting ──────────────────────────────────────────────────
 
   const filtered = guests
     .filter((g) => {
@@ -106,12 +148,12 @@ export default function Guests() {
       return matchSearch && matchRsvp;
     })
     .sort((a, b) => {
-      let va = a[sortField] as string;
-      let vb = b[sortField] as string;
+      const va = a[sortField] as string;
+      const vb = b[sortField] as string;
       return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
     });
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
   const openAdd = () => {
     setEditGuest(blankGuest());
@@ -125,34 +167,50 @@ export default function Guests() {
     setDialogOpen(true);
   };
 
-  const saveGuest = () => {
+  const saveGuest = async () => {
     if (!editGuest.name.trim()) return;
-    if (isEditing) {
-      setGuests((prev) => prev.map((g) => (g.id === editGuest.id ? editGuest : g)));
+    if (useApi) {
+      if (isEditing) {
+        await updateMutation.mutateAsync(editGuest);
+      } else {
+        const { id: _id, ...data } = editGuest;
+        await createMutation.mutateAsync(data);
+      }
     } else {
-      setGuests((prev) => [...prev, editGuest]);
+      if (isEditing) {
+        persistLocal(localGuests.map((g) => (g.id === editGuest.id ? editGuest : g)));
+      } else {
+        persistLocal([...localGuests, editGuest]);
+      }
     }
     setDialogOpen(false);
   };
 
-  const deleteGuest = (id: string) => {
-    setGuests((prev) => prev.filter((g) => g.id !== id));
+  const deleteGuest = async (id: string) => {
+    if (useApi) {
+      await deleteMutation.mutateAsync(id);
+    } else {
+      persistLocal(localGuests.filter((g) => g.id !== id));
+    }
   };
 
-  const cycleRsvp = (id: string) => {
+  const cycleRsvp = async (id: string) => {
     const order: Guest["rsvp"][] = ["pending", "attending", "declined"];
-    setGuests((prev) =>
-      prev.map((g) =>
-        g.id === id
-          ? { ...g, rsvp: order[(order.indexOf(g.rsvp) + 1) % order.length] }
-          : g
-      )
-    );
+    const guest = guests.find((g) => g.id === id);
+    if (!guest) return;
+    const nextRsvp = order[(order.indexOf(guest.rsvp) + 1) % order.length];
+    if (useApi) {
+      await updateMutation.mutateAsync({ ...guest, rsvp: nextRsvp });
+    } else {
+      persistLocal(
+        localGuests.map((g) => (g.id === id ? { ...g, rsvp: nextRsvp } : g))
+      );
+    }
   };
 
-  const bulkAddGuests = () => {
+  const bulkAddGuests = async () => {
     const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
-    const added: Guest[] = [];
+    const added: Omit<Guest, "id">[] = [];
     for (const line of lines) {
       const parts = line.split("\t").length > 1 ? line.split("\t") : line.split(",");
       const [rawName, rawRsvp, rawSide, rawTable, rawDietary, ...rest] = parts.map((p) => p.trim());
@@ -162,26 +220,30 @@ export default function Guests() {
         declined: "declined", no: "declined",
         pending: "pending", maybe: "pending", tbd: "pending",
       };
-      const rsvp: Guest["rsvp"] = rsvpMap[rawRsvp?.toLowerCase()] ?? "pending";
       const sideMap: Record<string, Guest["side"]> = {
         partner1: "partner1", p1: "partner1",
         partner2: "partner2", p2: "partner2",
         both: "both",
       };
-      const side: Guest["side"] = sideMap[rawSide?.toLowerCase()] ?? "both";
       added.push({
-        id: crypto.randomUUID(),
         name: rawName,
         plusOne: false,
-        rsvp,
+        rsvp: rsvpMap[rawRsvp?.toLowerCase()] ?? "pending",
         dietary: rawDietary ?? "",
         table: rawTable ?? "",
-        side,
+        side: sideMap[rawSide?.toLowerCase()] ?? "both",
         notes: rest.join(", ").trim(),
       });
     }
     if (added.length === 0) return;
-    setGuests((prev) => [...prev, ...added]);
+    if (useApi) {
+      await Promise.all(added.map((g) => createMutation.mutateAsync(g)));
+    } else {
+      persistLocal([
+        ...localGuests,
+        ...added.map((g) => ({ ...g, id: crypto.randomUUID() })),
+      ]);
+    }
     setBulkText("");
     setBulkDialogOpen(false);
     toast({ title: `Added ${added.length} guest${added.length !== 1 ? "s" : ""}` });
@@ -307,7 +369,6 @@ export default function Guests() {
           </div>
         ) : (
           <div className="bg-card border border-border rounded-xl overflow-hidden">
-            {/* Table header */}
             <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 px-4 py-2.5 border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
               <button className="flex items-center gap-1 hover:text-foreground text-left" onClick={() => toggleSort("name")}>
                 Name <SortIcon field="name" />
@@ -324,14 +385,12 @@ export default function Guests() {
               <span />
             </div>
 
-            {/* Rows */}
             <div className="divide-y divide-border/50">
               {filtered.map((guest) => (
                 <div
                   key={guest.id}
                   className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 sm:gap-4 px-4 py-3 hover:bg-muted/30 transition-colors items-center"
                 >
-                  {/* Name */}
                   <div>
                     <button
                       onClick={() => openEdit(guest)}
@@ -354,7 +413,6 @@ export default function Guests() {
                     </div>
                   </div>
 
-                  {/* RSVP */}
                   <button onClick={() => cycleRsvp(guest.id)} title="Click to cycle RSVP status">
                     <Badge
                       variant="outline"
@@ -368,17 +426,14 @@ export default function Guests() {
                     </Badge>
                   </button>
 
-                  {/* Table */}
                   <p className="text-sm text-muted-foreground">
                     {guest.table || <span className="italic text-muted-foreground/50">—</span>}
                   </p>
 
-                  {/* Side */}
                   <p className="text-sm text-muted-foreground text-xs">
                     {SIDE_LABELS[guest.side]}
                   </p>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEdit(guest)}
@@ -445,7 +500,6 @@ export default function Guests() {
             </DialogHeader>
 
             <div className="space-y-4 py-2">
-              {/* Name */}
               <div className="space-y-1.5">
                 <Label>Full Name *</Label>
                 <Input
@@ -455,7 +509,6 @@ export default function Guests() {
                 />
               </div>
 
-              {/* RSVP + Plus One row */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>RSVP Status</Label>
@@ -483,7 +536,6 @@ export default function Guests() {
                 </div>
               </div>
 
-              {/* Table + Dietary row */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Table</Label>
@@ -503,7 +555,6 @@ export default function Guests() {
                 </div>
               </div>
 
-              {/* Plus One */}
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <div
                   onClick={() => setEditGuest((g) => ({ ...g, plusOne: !g.plusOne }))}
@@ -517,7 +568,6 @@ export default function Guests() {
                 <span className="text-sm text-muted-foreground">Bringing a +1</span>
               </label>
 
-              {/* Notes */}
               <div className="space-y-1.5">
                 <Label>Notes</Label>
                 <Input

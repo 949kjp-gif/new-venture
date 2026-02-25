@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Shell } from "@/components/layout/Shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import {
   Building2, Plus, Pencil, Trash2, Check, ChevronDown, ChevronUp,
   Phone, Mail, DollarSign, AlertTriangle, Lightbulb, MessageSquare,
 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,17 +225,51 @@ const VENDOR_TIPS: TipCategory[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Vendors() {
-  const [vendors, setVendors] = useState<Vendor[]>(initVendors);
+  const { user, isDemoMode } = useAuth();
+  const useApi = !!user && !isDemoMode;
+
+  // ── Demo mode: localStorage ──────────────────────────────────────────────
+  const [localVendors, setLocalVendors] = useState<Vendor[]>(() => {
+    if (useApi) return [];
+    return initVendors();
+  });
+
+  const persistLocal = (updated: Vendor[]) => {
+    setLocalVendors(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // ── API mode: React Query ────────────────────────────────────────────────
+  const { data: apiVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
+    enabled: useApi,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Omit<Vendor, "id">) =>
+      apiRequest("POST", "/api/vendors", data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/vendors"] }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }: Vendor) =>
+      apiRequest("PUT", `/api/vendors/${id}`, data).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/vendors"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/vendors/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/vendors"] }),
+  });
+
+  const vendors = useApi ? apiVendors : localVendors;
+
   const [activeTab, setActiveTab] = useState<"vendors" | "tips">("vendors");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editVendor, setEditVendor] = useState<Vendor>(blankVendor("Venue"));
   const [isEditing, setIsEditing] = useState(false);
   const [expandedTip, setExpandedTip] = useState<string | null>(null);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(vendors));
-  }, [vendors]);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const booked = vendors.filter((v) => v.status === "booked").length;
@@ -250,21 +287,41 @@ export default function Vendors() {
     setDialogOpen(true);
   };
 
-  const saveVendor = () => {
-    if (isEditing) {
-      setVendors((prev) => prev.map((v) => (v.id === editVendor.id ? editVendor : v)));
+  const saveVendor = async () => {
+    if (useApi) {
+      if (isEditing) {
+        const { id, ...data } = editVendor;
+        await updateMutation.mutateAsync({ id, ...data });
+      } else {
+        const { id: _id, ...data } = editVendor;
+        await createMutation.mutateAsync(data);
+      }
     } else {
-      setVendors((prev) => [...prev, editVendor]);
+      if (isEditing) {
+        persistLocal(localVendors.map((v) => (v.id === editVendor.id ? editVendor : v)));
+      } else {
+        persistLocal([...localVendors, editVendor]);
+      }
     }
     setDialogOpen(false);
   };
 
-  const deleteVendor = (id: string) => {
-    setVendors((prev) => prev.filter((v) => v.id !== id));
+  const deleteVendor = async (id: string) => {
+    if (useApi) {
+      await deleteMutation.mutateAsync(id);
+    } else {
+      persistLocal(localVendors.filter((v) => v.id !== id));
+    }
   };
 
-  const updateStatus = (id: string, status: Vendor["status"]) => {
-    setVendors((prev) => prev.map((v) => (v.id === id ? { ...v, status } : v)));
+  const updateStatus = async (id: string, status: Vendor["status"]) => {
+    const vendor = vendors.find((v) => v.id === id);
+    if (!vendor) return;
+    if (useApi) {
+      await updateMutation.mutateAsync({ ...vendor, status });
+    } else {
+      persistLocal(localVendors.map((v) => (v.id === id ? { ...v, status } : v)));
+    }
   };
 
   return (

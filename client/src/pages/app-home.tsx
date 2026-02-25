@@ -4,9 +4,16 @@ import { Shell } from "@/components/layout/Shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowRight, ClipboardList, Building2, Users, FileText,
-  Calculator, NotebookPen, Home, Circle,
-  Calendar, DollarSign, Sparkles, Send,
+  Calculator, NotebookPen, Home, Sparkles,
+  Calendar, DollarSign, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +37,11 @@ const UPCOMING_PAYMENTS = [
 ];
 
 const UPCOMING_TASKS = [
-  { label: "Book florist & decor", timeframe: "3–6 months", done: false },
-  { label: "Book entertainment (band or DJ)", timeframe: "3–6 months", done: false },
-  { label: "Finalize guest list & send invitations", timeframe: "3–6 months", done: false },
-  { label: "Schedule cake tastings", timeframe: "3–6 months", done: false },
-  { label: "Final dress fitting", timeframe: "1–3 months", done: false },
+  { label: "Book florist & decor", timeframe: "3–6 months" },
+  { label: "Book entertainment (band or DJ)", timeframe: "3–6 months" },
+  { label: "Finalize guest list & send invitations", timeframe: "3–6 months" },
+  { label: "Schedule cake tastings", timeframe: "3–6 months" },
+  { label: "Final dress fitting", timeframe: "1–3 months" },
 ];
 
 const FOCUS_OF_WEEK = {
@@ -55,18 +62,20 @@ const QUICK_ACTIONS = [
 ];
 
 const MOODS = [
-  { emoji: "😊", label: "Excited" },
-  { emoji: "😌", label: "Calm" },
-  { emoji: "😐", label: "Meh" },
-  { emoji: "😰", label: "Stressed" },
+  { value: "excited", label: "Excited" },
+  { value: "calm", label: "Calm" },
+  { value: "meh", label: "Meh" },
+  { value: "stressed", label: "Stressed" },
 ];
 
 const MOOD_RESPONSES: Record<string, string> = {
-  "😊": "Love that energy! Everything is coming together beautifully. 🎉",
-  "😌": "That's the spirit — steady and confident. You've got this.",
-  "😐": "Totally valid. Wedding planning has its slow days. What can we tackle today?",
-  "😰": "Take a breath — you're not alone. Let's break it into small steps together.",
+  excited: "Love that energy! Everything is coming together beautifully.",
+  calm: "That's the spirit — steady and confident. You've got this.",
+  meh: "Totally valid. Wedding planning has its slow days. What can we tackle today?",
+  stressed: "Take a breath — you're not alone. Let's break it into small steps together.",
 };
+
+const TASK_STATUSES = ["To Do", "In Progress", "Done"] as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -74,6 +83,9 @@ export default function AppHome() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [feelingInput, setFeelingInput] = useState("");
   const [feelingSubmitted, setFeelingSubmitted] = useState(false);
+  const [taskStatuses, setTaskStatuses] = useState<Record<number, string>>(() =>
+    Object.fromEntries(UPCOMING_TASKS.map((_, i) => [i, "To Do"]))
+  );
 
   const handleFeelingSubmit = () => {
     if (!feelingInput.trim() && !selectedMood) return;
@@ -91,7 +103,7 @@ export default function AppHome() {
             <div>
               <div className="flex items-center gap-2 mb-3 opacity-70">
                 <Home className="w-4 h-4" />
-                <span className="text-sm uppercase tracking-wider font-semibold">Home</span>
+                <span className="text-sm uppercase tracking-wider font-semibold">Main</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold font-serif">Alex & Jordan</h1>
               <div className="flex items-center gap-2 mt-3 opacity-80">
@@ -101,7 +113,7 @@ export default function AppHome() {
             </div>
             <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4 text-accent" />
+                <Sparkles className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-semibold opacity-90">You're on track!</span>
               </div>
               <p className="text-xs opacity-70 leading-relaxed max-w-[200px]">
@@ -112,10 +124,10 @@ export default function AppHome() {
         </section>
 
         {/* ── Focus of the Week ── */}
-        <section className="bg-accent/10 border border-accent/30 rounded-2xl p-6">
+        <section className="bg-muted/40 border border-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Focus of the Week</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Focus of the Week</p>
               <h2 className="text-xl font-serif font-bold text-primary">{FOCUS_OF_WEEK.title}</h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
                 {FOCUS_OF_WEEK.description}
@@ -131,57 +143,68 @@ export default function AppHome() {
           </div>
         </section>
 
-        {/* ── Budget Bar Graph ── */}
-        <section className="bg-card border border-border rounded-2xl p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif font-bold text-xl text-primary">Budget Overview</h2>
-            <Link href="/dashboard">
-              <a className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors">
-                Full view <ArrowRight className="w-3 h-3" />
-              </a>
-            </Link>
+        {/* ── How are you feeling today? ── */}
+        <section className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-serif font-bold text-lg text-primary">How are you feeling today?</h2>
           </div>
-          <div className="space-y-4">
-            {BUDGET_CATEGORIES.map((cat) => {
-              const pct = cat.target > 0 ? Math.min((cat.spent / cat.target) * 100, 100) : 0;
-              const overPct = cat.target > 0 && cat.spent > cat.target
-                ? Math.min(((cat.spent - cat.target) / cat.target) * 100, 20)
-                : 0;
-              const barColor =
-                cat.status === "over"      ? "bg-amber-400" :
-                cat.status === "on_target" ? "bg-green-500" :
-                cat.status === "pending"   ? "bg-muted-foreground/20" :
-                                             "bg-primary/60";
-              const labelColor =
-                cat.status === "over"      ? "text-amber-600" :
-                cat.status === "on_target" ? "text-green-600" :
-                cat.status === "pending"   ? "text-muted-foreground" :
-                                             "text-primary";
-              return (
-                <div key={cat.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{cat.name}</span>
-                    <span className={cn("text-xs font-semibold", labelColor)}>
-                      {cat.status === "pending" ? "No spending yet" :
-                       cat.status === "over"    ? `+$${(cat.spent - cat.target).toLocaleString()} over` :
-                       cat.status === "on_target" ? "On plan" :
-                       `-$${(cat.target - cat.spent).toLocaleString()} remaining`}
-                    </span>
-                  </div>
-                  <div className="h-3 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full transition-all", barColor)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-muted-foreground">
-                    <span>${cat.spent.toLocaleString()} spent</span>
-                    <span>${cat.target.toLocaleString()} budget</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+
+          {feelingSubmitted ? (
+            <div className="text-center py-4 space-y-2">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {selectedMood
+                  ? MOOD_RESPONSES[selectedMood]
+                  : "Thanks for sharing — we're here whenever you need us."}
+              </p>
+              <button
+                onClick={() => { setFeelingSubmitted(false); setSelectedMood(null); setFeelingInput(""); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
+              >
+                Share again
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Mood buttons */}
+              <div className="flex gap-3">
+                {MOODS.map((mood) => (
+                  <button
+                    key={mood.value}
+                    onClick={() => setSelectedMood((prev) => prev === mood.value ? null : mood.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all flex-1 text-sm font-medium",
+                      selectedMood === mood.value
+                        ? "bg-primary/10 border-primary/40 scale-105"
+                        : "border-border hover:bg-muted/50 hover:border-primary/20 text-muted-foreground"
+                    )}
+                  >
+                    {mood.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Free-text input */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Or tell us more — anything on your mind…"
+                  value={feelingInput}
+                  onChange={(e) => setFeelingInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleFeelingSubmit(); }}
+                  className="flex-1 text-sm"
+                />
+                <Button
+                  size="icon"
+                  onClick={handleFeelingSubmit}
+                  disabled={!feelingInput.trim() && !selectedMood}
+                  className="rounded-full h-9 w-9 shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground text-center">Your response stays private — this is just for you.</p>
+            </div>
+          )}
         </section>
 
         {/* ── Two-col: Upcoming Tasks + Payments ── */}
@@ -192,19 +215,31 @@ export default function AppHome() {
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-bold text-xl text-primary">Upcoming Tasks</h2>
               <Link href="/planning">
-                <a className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors">
+                <a className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
                   View all <ArrowRight className="w-3 h-3" />
                 </a>
               </Link>
             </div>
             <div className="space-y-2">
               {UPCOMING_TASKS.map((task, i) => (
-                <div key={i} className="flex items-start gap-3 py-2 border-b border-border/40 last:border-0">
-                  <Circle className="w-4 h-4 text-muted-foreground/40 mt-0.5 shrink-0" />
+                <div key={i} className="flex items-center gap-3 py-2 border-b border-border/40 last:border-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{task.label}</p>
                     <p className="text-xs text-muted-foreground">{task.timeframe}</p>
                   </div>
+                  <Select
+                    value={taskStatuses[i]}
+                    onValueChange={(val) => setTaskStatuses((prev) => ({ ...prev, [i]: val }))}
+                  >
+                    <SelectTrigger className="h-7 w-[110px] text-xs shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TASK_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
             </div>
@@ -215,7 +250,7 @@ export default function AppHome() {
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-bold text-xl text-primary">Upcoming Payments</h2>
               <Link href="/dashboard">
-                <a className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors">
+                <a className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
                   View all <ArrowRight className="w-3 h-3" />
                 </a>
               </Link>
@@ -227,7 +262,7 @@ export default function AppHome() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{p.label}</p>
                       {p.urgent && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-1.5 py-0.5 font-medium">
+                        <span className="text-[10px] bg-muted text-muted-foreground border border-border rounded-full px-1.5 py-0.5 font-medium">
                           Soon
                         </span>
                       )}
@@ -259,70 +294,53 @@ export default function AppHome() {
           </div>
         </section>
 
-        {/* ── How are you feeling today? ── */}
-        <section className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-accent" />
-            <h2 className="font-serif font-bold text-lg text-primary">How are you feeling today?</h2>
+        {/* ── Budget Overview ── */}
+        <section className="bg-card border border-border rounded-2xl p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif font-bold text-xl text-primary">Budget Overview</h2>
+            <Link href="/dashboard">
+              <a className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+                Full view <ArrowRight className="w-3 h-3" />
+              </a>
+            </Link>
           </div>
-
-          {feelingSubmitted ? (
-            <div className="text-center py-4 space-y-2">
-              <p className="text-2xl">{selectedMood || "💬"}</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {selectedMood
-                  ? MOOD_RESPONSES[selectedMood]
-                  : "Thanks for sharing — we're here whenever you need us. 💛"}
-              </p>
-              <button
-                onClick={() => { setFeelingSubmitted(false); setSelectedMood(null); setFeelingInput(""); }}
-                className="text-xs text-accent hover:text-accent/80 transition-colors mt-2"
-              >
-                Share again
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Mood emoji buttons */}
-              <div className="flex gap-3">
-                {MOODS.map((mood) => (
-                  <button
-                    key={mood.emoji}
-                    onClick={() => setSelectedMood((prev) => prev === mood.emoji ? null : mood.emoji)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all flex-1",
-                      selectedMood === mood.emoji
-                        ? "bg-primary/10 border-primary/40 scale-105"
-                        : "border-border hover:bg-muted/50 hover:border-primary/20"
-                    )}
-                  >
-                    <span className="text-xl">{mood.emoji}</span>
-                    <span className="text-[10px] text-muted-foreground font-medium">{mood.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Free-text input */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Or tell us more — anything on your mind…"
-                  value={feelingInput}
-                  onChange={(e) => setFeelingInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleFeelingSubmit(); }}
-                  className="flex-1 text-sm"
-                />
-                <Button
-                  size="icon"
-                  onClick={handleFeelingSubmit}
-                  disabled={!feelingInput.trim() && !selectedMood}
-                  className="rounded-full h-9 w-9 shrink-0"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground text-center">Your response stays private — this is just for you.</p>
-            </div>
-          )}
+          <div className="space-y-4">
+            {BUDGET_CATEGORIES.map((cat) => {
+              const pct = cat.target > 0 ? Math.min((cat.spent / cat.target) * 100, 100) : 0;
+              const barColor =
+                cat.status === "over"      ? "bg-amber-300/70" :
+                cat.status === "on_target" ? "bg-emerald-400/70" :
+                cat.status === "pending"   ? "bg-muted-foreground/20" :
+                                             "bg-primary/40";
+              const labelColor =
+                cat.status === "over"      ? "text-amber-500" :
+                cat.status === "on_target" ? "text-emerald-600" :
+                                             "text-muted-foreground";
+              return (
+                <div key={cat.name} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{cat.name}</span>
+                    <span className={cn("text-xs font-semibold", labelColor)}>
+                      {cat.status === "pending"   ? "No spending yet" :
+                       cat.status === "over"      ? `+$${(cat.spent - cat.target).toLocaleString()} over` :
+                       cat.status === "on_target" ? "On plan" :
+                       `-$${(cat.target - cat.spent).toLocaleString()} remaining`}
+                    </span>
+                  </div>
+                  <div className="h-3 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all", barColor)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>${cat.spent.toLocaleString()} spent</span>
+                    <span>${cat.target.toLocaleString()} budget</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
       </div>

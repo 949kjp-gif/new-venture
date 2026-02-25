@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -96,10 +99,97 @@ const COLLABORATOR_ROLES = ["Co-Planner", "View Only", "Wedding Planner"];
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const { user, isDemoMode } = useAuth();
+  const useApi = !!user && !isDemoMode;
+  const seededRef = useRef(false);
+
+  // ── Budget from API ─────────────────────────────────────────────────────
+  const { data: budgetData } = useQuery<{ totalBudget: number }>({
+    queryKey: ["/api/budget"],
+    enabled: useApi,
+  });
+
+  const updateBudgetMutation = useMutation({
+    mutationFn: (totalBudget: number) =>
+      apiRequest("PUT", "/api/budget", { totalBudget }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/budget"] }),
+  });
+
+  // ── Budget categories from API ──────────────────────────────────────────
+  type ApiCategory = { id: string; name: string; target: number; sortOrder: number };
+  const { data: apiCategories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["/api/budget/categories"],
+    enabled: useApi,
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, target }: { id: string; target: number }) =>
+      apiRequest("PUT", `/api/budget/categories/${id}`, { target }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/budget/categories"] }),
+  });
+
+  // ── Budget items from API ───────────────────────────────────────────────
+  type ApiItem = { id: string; categoryId: string; name: string; cost: number; paid: boolean };
+  const { data: apiItems = [] } = useQuery<ApiItem[]>({
+    queryKey: ["/api/budget/items"],
+    enabled: useApi,
+  });
+
+  // Seed categories + items on first load
+  useEffect(() => {
+    if (!useApi || seededRef.current || apiCategories.length > 0) return;
+    seededRef.current = true;
+    const seedCategories = async () => {
+      const res = await apiRequest("POST", "/api/budget/categories",
+        CATEGORIES_INIT.map((c, i) => ({ name: c.name, target: c.target, sortOrder: i }))
+      ).then((r) => r.json() as Promise<ApiCategory[]>);
+      for (const cat of res) {
+        const src = CATEGORIES_INIT.find((c) => c.name === cat.name);
+        if (!src) continue;
+        for (const item of src.items) {
+          await apiRequest("POST", "/api/budget/items", {
+            categoryId: cat.id,
+            name: item.name,
+            cost: item.cost,
+            paid: item.paid,
+          });
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/budget/categories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/budget/items"] });
+    };
+    seedCategories();
+  }, [useApi, apiCategories.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Merge API data into the CATEGORIES_INIT shape for rendering
+  const categories = CATEGORIES_INIT.map((c) => {
+    if (!useApi) return c;
+    const apiCat = apiCategories.find((a) => a.name === c.name);
+    const items = apiCat
+      ? apiItems
+          .filter((i) => i.categoryId === apiCat.id)
+          .map((i) => ({ name: i.name, cost: i.cost, paid: i.paid }))
+      : c.items;
+    const actual = items.reduce((sum, i) => sum + i.cost, 0);
+    const target = apiCat?.target ?? c.target;
+    const percentage = target > 0 ? Math.round((actual / target) * 100) : 0;
+    const status = actual === 0 ? "pending" : actual > target ? "over" : actual === target ? "on_target" : "under";
+    return { ...c, target, actual, items, percentage, status };
+  });
+
+  const totalInvested = categories.reduce((sum, c) => sum + c.actual, 0);
+
   // Existing state
   const [showAlert, setShowAlert] = useState(true);
   const [expandedCats, setExpandedCats] = useState<string[]>(["Venue & Catering"]);
   const [overallBudget, setOverallBudget] = useState([65000]);
+
+  // Sync budget from API on load
+  useEffect(() => {
+    if (budgetData?.totalBudget) {
+      setOverallBudget([budgetData.totalBudget]);
+    }
+  }, [budgetData?.totalBudget]);
 
   // Budget lock
   const [budgetLocked, setBudgetLocked] = useState(true);
@@ -114,6 +204,14 @@ export default function Dashboard() {
   const [catEditVal, setCatEditVal] = useState<Record<string, string>>(
     Object.fromEntries(CATEGORIES_INIT.map((c) => [c.name, String(c.target)]))
   );
+
+  // Sync category targets from API
+  useEffect(() => {
+    if (apiCategories.length > 0) {
+      setCatTargets(Object.fromEntries(apiCategories.map((c) => [c.name, c.target])));
+      setCatEditVal(Object.fromEntries(apiCategories.map((c) => [c.name, String(c.target)])));
+    }
+  }, [apiCategories]);
 
   // Tradeoffs
   const [showTradeoffs, setShowTradeoffs] = useState(true);
@@ -149,6 +247,10 @@ export default function Dashboard() {
     const parsed = parseInt(catEditVal[name].replace(/[^0-9]/g, ""), 10);
     if (!isNaN(parsed) && parsed > 0) {
       setCatTargets((prev) => ({ ...prev, [name]: parsed }));
+      if (useApi) {
+        const apiCat = apiCategories.find((c) => c.name === name);
+        if (apiCat) updateCategoryMutation.mutate({ id: apiCat.id, target: parsed });
+      }
     }
     setCatLocked((prev) => ({ ...prev, [name]: true }));
   };
@@ -220,7 +322,10 @@ export default function Dashboard() {
               <div className={budgetLocked ? "opacity-50 pointer-events-none" : ""}>
                 <Slider
                   value={overallBudget}
-                  onValueChange={(v) => { setOverallBudget(v); }}
+                  onValueChange={(v) => {
+                    setOverallBudget(v);
+                    if (useApi) updateBudgetMutation.mutate(v[0]);
+                  }}
                   max={150000}
                   min={30000}
                   step={1000}
@@ -268,8 +373,8 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-4">
-                {CATEGORIES_INIT.map((cat) => {
-                  const target = catTargets[cat.name];
+                {categories.map((cat) => {
+                  const target = catTargets[cat.name] ?? cat.target;
                   const locked = catLocked[cat.name];
                   const editVal = catEditVal[cat.name];
 
@@ -392,16 +497,16 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
                   <p className="text-[10px] opacity-60 uppercase tracking-widest font-extrabold text-primary">Total Invested</p>
-                  <p className="text-4xl font-bold font-serif text-primary">${(22400).toLocaleString()}</p>
+                  <p className="text-4xl font-bold font-serif text-primary">${totalInvested.toLocaleString()}</p>
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: '34%' }} />
+                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, Math.round((totalInvested / overallBudget[0]) * 100))}%` }} />
                   </div>
                 </div>
                 <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
                   <p className="text-[10px] opacity-60 uppercase tracking-widest font-extrabold text-primary">Remaining</p>
-                  <p className="text-4xl font-bold font-serif text-primary">${(overallBudget[0] - 22400).toLocaleString()}</p>
+                  <p className="text-4xl font-bold font-serif text-primary">${Math.max(0, overallBudget[0] - totalInvested).toLocaleString()}</p>
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-accent" style={{ width: '66%' }} />
+                    <div className="h-full bg-accent" style={{ width: `${Math.min(100, 100 - Math.round((totalInvested / overallBudget[0]) * 100))}%` }} />
                   </div>
                 </div>
                 <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
