@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, X,
-  Sparkles, Lock, Unlock, Users, HardDrive, Download, XCircle,
+  Sparkles, Lock, Unlock, Users, HardDrive, Download, XCircle, Heart
 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -159,40 +159,6 @@ export default function Dashboard() {
 
   const visibleTradeoffs = TRADEOFFS.filter((t) => !dismissedSuggestions.includes(t.id));
 
-  const addCollaborator = () => {
-    if (!collabEmail.trim()) return;
-    setCollaborators((prev) => [...prev, { email: collabEmail.trim(), role: collabRole }]);
-    setCollabEmail("");
-    setCollabRole("Co-Planner");
-  };
-
-  const removeCollaborator = (email: string) => {
-    setCollaborators((prev) => prev.filter((c) => c.email !== email));
-  };
-
-  const handleDriveConnect = () => {
-    setDriveConnecting(true);
-    setTimeout(() => {
-      setDriveConnecting(false);
-      setDriveConnected(true);
-    }, 1800);
-  };
-
-  const handleJsonDownload = () => {
-    const data = {
-      budget: overallBudget[0],
-      categories: CATEGORIES_INIT.map((c) => ({ ...c, target: catTargets[c.name] })),
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "wedagent-budget.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <Shell>
       <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
@@ -205,7 +171,7 @@ export default function Dashboard() {
             <div className="flex-1 space-y-6">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wider opacity-70 mb-3">Budget Dashboard</p>
-              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4">
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-serif leading-tight">
                     You're on track,<br />Alex & Jordan.
                   </h1>
@@ -219,20 +185,20 @@ export default function Dashboard() {
                     <Users className="w-5 h-5" />
                   </Button>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-4">
-                <div className="space-y-1">
-                  <p className="text-sm opacity-70 uppercase tracking-wider font-semibold">Total Invested</p>
-                  <p className="text-3xl font-bold font-serif">${(22400).toLocaleString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm opacity-70 uppercase tracking-wider font-semibold">Remaining</p>
-                  <p className="text-3xl font-bold font-serif">${(overallBudget[0] - 22400).toLocaleString()}</p>
-                </div>
-                <div className="hidden md:block space-y-1">
-                  <p className="text-sm opacity-70 uppercase tracking-wider font-semibold">Contingency</p>
-                  <p className="text-3xl font-bold font-serif">$6,500</p>
+                {/* Mood Check-in moved up inside the hero section */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 opacity-70">
+                    <Heart className="w-4 h-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wider">How are you feeling today?</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {["😌 Calm", "🤩 Excited", "🤯 Overwhelmed", "🧐 Focused"].map((mood) => (
+                      <button key={mood} className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-all text-xs font-medium backdrop-blur-sm">
+                        {mood}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -296,133 +262,163 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* ── Budget Categories ── */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex justify-between items-center px-2">
-              <h2 className="text-2xl font-serif font-bold text-primary">Budget Categories</h2>
-              <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                5 Categories Total
-              </Badge>
+          <div className="lg:col-span-2 space-y-12">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center px-2">
+                <h2 className="text-2xl font-serif font-bold text-primary">Budget Categories</h2>
+                <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                  5 Categories Total
+                </Badge>
+              </div>
+
+              <div className="space-y-4">
+                {CATEGORIES_INIT.map((cat) => {
+                  const target = catTargets[cat.name];
+                  const locked = catLocked[cat.name];
+                  const editVal = catEditVal[cat.name];
+
+                  return (
+                    <div key={cat.name} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all hover:shadow-md">
+                      <div
+                        className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
+                        onClick={() => toggleCat(cat.name)}
+                      >
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-3 items-end">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xl font-serif">{cat.name}</span>
+                              {expandedCats.includes(cat.name)
+                                ? <ChevronUp className="w-4 h-4 opacity-50" />
+                                : <ChevronDown className="w-4 h-4 opacity-50" />
+                              }
+                            </div>
+                            {/* Category target with lock */}
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-sm text-muted-foreground font-semibold">
+                                ${cat.actual.toLocaleString()} <span className="opacity-40">/</span>
+                              </span>
+                              {locked ? (
+                                <span className="text-sm text-muted-foreground font-semibold">${target.toLocaleString()}</span>
+                              ) : (
+                                <Input
+                                  className="h-7 w-28 text-sm text-right font-semibold px-2"
+                                  value={editVal}
+                                  onChange={(e) => setCatEditVal((prev) => ({ ...prev, [cat.name]: e.target.value }))}
+                                  onBlur={() => lockCat(cat.name)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") lockCat(cat.name); }}
+                                  autoFocus
+                                />
+                              )}
+                              <button
+                                onClick={() => locked ? unlockCat(cat.name) : lockCat(cat.name)}
+                                className="p-1 rounded hover:bg-muted transition-colors"
+                                title={locked ? "Edit target" : "Lock target"}
+                              >
+                                {locked
+                                  ? <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                                  : <Unlock className="w-3.5 h-3.5 text-amber-500" />
+                                }
+                              </button>
+                            </div>
+                          </div>
+                          <Progress
+                            value={Math.min(cat.percentage, 100)}
+                            className={`h-2 rounded-full ${
+                              cat.status === "over" ? "[&>div]:bg-amber-500" :
+                              cat.status === "on_target" ? "[&>div]:bg-green-600/80" :
+                              "[&>div]:bg-primary/80"
+                            }`}
+                          />
+                        </div>
+                        <div className="sm:ml-8 sm:w-32 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center">
+                          {cat.status === "over" && (
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-amber-600">+${(cat.actual - target).toLocaleString()}</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Adjust needed</span>
+                            </div>
+                          )}
+                          {cat.status === "under" && (
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-green-600">-${(target - cat.actual).toLocaleString()}</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Remaining</span>
+                            </div>
+                          )}
+                          {cat.status === "on_target" && <span className="text-xs font-bold text-muted-foreground uppercase">On Plan</span>}
+                          {cat.status === "pending" && <span className="text-xs text-muted-foreground italic">No Spending</span>}
+                        </div>
+                      </div>
+
+                      {expandedCats.includes(cat.name) && (
+                        <div className="bg-muted/30 border-t border-border p-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                          {cat.items.length > 0 ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-12 text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 px-4">
+                                <div className="col-span-7">Line Item</div>
+                                <div className="col-span-3 text-right">Amount</div>
+                                <div className="col-span-2 text-right">Status</div>
+                              </div>
+                              {cat.items.map((item, idx) => (
+                                <div key={idx} className="grid grid-cols-12 items-center bg-card py-3 px-4 rounded-xl border border-border/50 text-sm shadow-sm group hover:border-accent/40 transition-colors">
+                                  <div className="col-span-7 font-medium text-primary">{item.name}</div>
+                                  <div className="col-span-3 text-right font-bold text-primary">${item.cost.toLocaleString()}</div>
+                                  <div className="col-span-2 flex justify-end">
+                                    {item.paid ? (
+                                      <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 shadow-none gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> Paid
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 shadow-none gap-1">
+                                        <Circle className="w-3 h-3" /> Due
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground text-sm italic">
+                              No quotes or contracts uploaded yet for this category.
+                            </div>
+                          )}
+                          <div className="flex justify-center pt-2">
+                            <Button variant="ghost" size="sm" className="text-xs text-accent font-bold hover:bg-accent/10 rounded-full">
+                              + Add Manual Line Item
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {CATEGORIES_INIT.map((cat) => {
-                const target = catTargets[cat.name];
-                const locked = catLocked[cat.name];
-                const editVal = catEditVal[cat.name];
-
-                return (
-                  <div key={cat.name} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all hover:shadow-md">
-                    <div
-                      className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
-                      onClick={() => toggleCat(cat.name)}
-                    >
-                      <div className="flex-1">
-                        <div className="flex justify-between mb-3 items-end">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xl font-serif">{cat.name}</span>
-                            {expandedCats.includes(cat.name)
-                              ? <ChevronUp className="w-4 h-4 opacity-50" />
-                              : <ChevronDown className="w-4 h-4 opacity-50" />
-                            }
-                          </div>
-                          {/* Category target with lock */}
-                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-sm text-muted-foreground font-semibold">
-                              ${cat.actual.toLocaleString()} <span className="opacity-40">/</span>
-                            </span>
-                            {locked ? (
-                              <span className="text-sm text-muted-foreground font-semibold">${target.toLocaleString()}</span>
-                            ) : (
-                              <Input
-                                className="h-7 w-28 text-sm text-right font-semibold px-2"
-                                value={editVal}
-                                onChange={(e) => setCatEditVal((prev) => ({ ...prev, [cat.name]: e.target.value }))}
-                                onBlur={() => lockCat(cat.name)}
-                                onKeyDown={(e) => { if (e.key === "Enter") lockCat(cat.name); }}
-                                autoFocus
-                              />
-                            )}
-                            <button
-                              onClick={() => locked ? unlockCat(cat.name) : lockCat(cat.name)}
-                              className="p-1 rounded hover:bg-muted transition-colors"
-                              title={locked ? "Edit target" : "Lock target"}
-                            >
-                              {locked
-                                ? <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                                : <Unlock className="w-3.5 h-3.5 text-amber-500" />
-                              }
-                            </button>
-                          </div>
-                        </div>
-                        <Progress
-                          value={Math.min(cat.percentage, 100)}
-                          className={`h-2 rounded-full ${
-                            cat.status === "over" ? "[&>div]:bg-amber-500" :
-                            cat.status === "on_target" ? "[&>div]:bg-green-600/80" :
-                            "[&>div]:bg-primary/80"
-                          }`}
-                        />
-                      </div>
-                      <div className="sm:ml-8 sm:w-32 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center">
-                        {cat.status === "over" && (
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-amber-600">+${(cat.actual - target).toLocaleString()}</span>
-                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Adjust needed</span>
-                          </div>
-                        )}
-                        {cat.status === "under" && (
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-green-600">-${(target - cat.actual).toLocaleString()}</span>
-                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Remaining</span>
-                          </div>
-                        )}
-                        {cat.status === "on_target" && <span className="text-xs font-bold text-muted-foreground uppercase">On Plan</span>}
-                        {cat.status === "pending" && <span className="text-xs text-muted-foreground italic">No Spending</span>}
-                      </div>
-                    </div>
-
-                    {expandedCats.includes(cat.name) && (
-                      <div className="bg-muted/30 border-t border-border p-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
-                        {cat.items.length > 0 ? (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-12 text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 px-4">
-                              <div className="col-span-7">Line Item</div>
-                              <div className="col-span-3 text-right">Amount</div>
-                              <div className="col-span-2 text-right">Status</div>
-                            </div>
-                            {cat.items.map((item, idx) => (
-                              <div key={idx} className="grid grid-cols-12 items-center bg-card py-3 px-4 rounded-xl border border-border/50 text-sm shadow-sm group hover:border-accent/40 transition-colors">
-                                <div className="col-span-7 font-medium text-primary">{item.name}</div>
-                                <div className="col-span-3 text-right font-bold text-primary">${item.cost.toLocaleString()}</div>
-                                <div className="col-span-2 flex justify-end">
-                                  {item.paid ? (
-                                    <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 shadow-none gap-1">
-                                      <CheckCircle2 className="w-3 h-3" /> Paid
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 shadow-none gap-1">
-                                      <Circle className="w-3 h-3" /> Due
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground text-sm italic">
-                            No quotes or contracts uploaded yet for this category.
-                          </div>
-                        )}
-                        <div className="flex justify-center pt-2">
-                          <Button variant="ghost" size="sm" className="text-xs text-accent font-bold hover:bg-accent/10 rounded-full">
-                            + Add Manual Line Item
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+            {/* Budget Snapshot Section - Moved down and muted colors */}
+            <div className="pt-10 border-t border-border/50">
+              <h2 className="text-2xl font-serif font-bold text-primary opacity-30 mb-6 px-2 tracking-tight">Budget Snapshot</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
+                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Total Invested</p>
+                  <p className="text-3xl font-bold font-serif opacity-30">${(22400).toLocaleString()}</p>
+                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-muted-foreground/10" style={{ width: '34%' }} />
                   </div>
-                );
-              })}
+                </div>
+                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
+                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Remaining</p>
+                  <p className="text-3xl font-bold font-serif opacity-30">${(overallBudget[0] - 22400).toLocaleString()}</p>
+                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-muted-foreground/10" style={{ width: '66%' }} />
+                  </div>
+                </div>
+                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
+                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Contingency</p>
+                  <p className="text-3xl font-bold font-serif opacity-30">$6,500</p>
+                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-muted-foreground/10" style={{ width: '10%' }} />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -502,12 +498,12 @@ export default function Dashboard() {
               <div className="space-y-6 pt-4 relative">
                 <div className="absolute left-1.5 top-6 bottom-6 w-0.5 bg-primary/20" />
                 {[
-                  { date: "Mar 15", label: "DJ Final Balance", amount: "$3,000" },
-                  { date: "Apr 02", label: "Catering 50% Milestone", amount: "$6,250" },
-                  { date: "May 20", label: "Florist Retainer", amount: "$1,500" },
+                  { date: "Mar 15", label: "DJ Final Balance", amount: "$3,000", done: false },
+                  { date: "Apr 02", label: "Catering 50% Milestone", amount: "$6,250", done: false },
+                  { date: "May 20", label: "Florist Retainer", amount: "$1,500", done: false },
                 ].map((p, i) => (
                   <div key={i} className="flex gap-4 relative z-10">
-                    <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/10 mt-1.5 shrink-0" />
+                    <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/10 mt-1.5" />
                     <div>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase">{p.date}</p>
                       <p className="text-sm font-bold">{p.label}</p>
@@ -516,168 +512,62 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <Link href="/planning">
-                <Button variant="ghost" size="sm" className="w-full text-xs text-accent hover:bg-accent/10 rounded-full mt-2">
-                  View Full Payment Timeline →
-                </Button>
-              </Link>
-            </div>
-
-            {/* Backup & Export */}
-            <div className="bg-muted/40 p-6 rounded-3xl border border-border space-y-4">
-              <div className="flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-muted-foreground" />
-                <h3 className="font-semibold text-base">Backup & Export</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">Save your budget data or share it externally.</p>
-              <div className="flex flex-col gap-2">
-                <Button variant="outline" size="sm" className="w-full gap-2 rounded-full" onClick={() => setBackupModalOpen(true)}>
-                  <HardDrive className="w-4 h-4" /> Backup & Export Options
-                </Button>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Collaborators Modal ── */}
+      {/* Collaborator Modal */}
       <Dialog open={collabModalOpen} onOpenChange={setCollabModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="font-serif text-primary flex items-center gap-2">
-              <Users className="w-5 h-5" /> Invite Collaborators
-            </DialogTitle>
+            <DialogTitle className="font-serif text-2xl">Collaborators</DialogTitle>
             <DialogDescription>
-              Share your wedding budget with your partner, planner, or family.
+              Invite your partner or wedding planner to manage the budget together.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 pt-2">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800">
-              Sharing coming soon — this will allow your partner, planner, or family to view and edit your wedding plan.
-            </div>
-
-            {/* Add collaborator */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Invite by email</Label>
-              <div className="flex gap-2">
+          <div className="space-y-6 py-4">
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="email" className="text-xs uppercase font-bold text-muted-foreground">Email</Label>
                 <Input
-                  placeholder="email@example.com"
+                  id="email"
+                  placeholder="partner@email.com"
                   value={collabEmail}
                   onChange={(e) => setCollabEmail(e.target.value)}
-                  className="flex-1 h-9"
+                  className="rounded-xl"
                 />
+              </div>
+              <div className="w-32 space-y-2">
+                <Label htmlFor="role" className="text-xs uppercase font-bold text-muted-foreground">Role</Label>
                 <select
+                  id="role"
+                  className="w-full h-10 px-3 py-2 rounded-xl border border-input bg-background text-sm"
                   value={collabRole}
                   onChange={(e) => setCollabRole(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  {COLLABORATOR_ROLES.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
+                  {COLLABORATOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
-              <Button size="sm" className="w-full rounded-full" onClick={addCollaborator}>
-                Send Invite
+              <Button onClick={addCollaborator} className="self-end h-10 rounded-xl px-4">
+                Invite
               </Button>
             </div>
 
-            {/* Existing collaborators */}
-            {collaborators.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs uppercase font-bold text-muted-foreground">Active Members</p>
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Current collaborators</Label>
                 {collaborators.map((c) => (
-                  <div key={c.email} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2 border border-border">
+                  <div key={c.email} className="flex justify-between items-center p-3 rounded-xl bg-muted/30 border border-border/50">
                     <div>
-                      <p className="text-sm font-medium">{c.email}</p>
-                      <p className="text-xs text-muted-foreground">{c.role}</p>
+                      <p className="text-sm font-semibold">{c.email}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold">{c.role}</p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeCollaborator(c.email)}
-                    >
-                      <X className="w-3.5 h-3.5" />
+                    <Button variant="ghost" size="icon" onClick={() => removeCollaborator(c.email)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Backup & Export Modal ── */}
-      <Dialog open={backupModalOpen} onOpenChange={setBackupModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-primary flex items-center gap-2">
-              <HardDrive className="w-5 h-5" /> Backup & Export
-            </DialogTitle>
-            <DialogDescription>
-              Export your budget, vendors, and planning data.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-5 pt-2">
-            <div className="bg-muted/40 rounded-xl border border-border p-4 space-y-2">
-              <p className="text-sm font-medium text-primary">What will be exported:</p>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Budget categories & targets</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Vendor quotes & notes</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Payment timeline</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Planning tasks & milestones</li>
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full gap-2 rounded-full"
-                onClick={handleJsonDownload}
-              >
-                <Download className="w-4 h-4" /> Download as JSON
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full gap-2 rounded-full text-muted-foreground"
-                disabled
-              >
-                <Download className="w-4 h-4" /> Download as PDF
-                <Badge variant="secondary" className="text-[10px] ml-auto">Soon</Badge>
-              </Button>
-
-              <div className="border border-border rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <HardDrive className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Google Drive Backup</p>
-                    <p className="text-xs text-muted-foreground">
-                      {driveConnected ? "Connected — ready to backup" : "Connect your Google account"}
-                    </p>
-                  </div>
-                </div>
-                {driveConnected ? (
-                  <Button size="sm" className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                    <HardDrive className="w-3.5 h-3.5" /> Backup to Drive
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full rounded-full gap-2"
-                    onClick={handleDriveConnect}
-                    disabled={driveConnecting}
-                  >
-                    {driveConnecting ? (
-                      <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Connecting...</>
-                    ) : (
-                      "Connect Google Account"
-                    )}
-                  </Button>
-                )}
               </div>
             </div>
           </div>
