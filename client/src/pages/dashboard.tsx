@@ -175,21 +175,21 @@ export default function Dashboard() {
       <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
 
         {/* ── Hero Header ── */}
-        <section className="relative overflow-hidden rounded-3xl bg-muted/20 p-8 md:p-12 text-foreground border border-border/40 shadow-sm">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-accent/5 to-transparent pointer-events-none" />
+        <section className="relative overflow-hidden rounded-3xl bg-primary p-8 md:p-12 text-primary-foreground border-none shadow-xl">
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
 
           <div className="relative z-10 flex flex-col lg:flex-row justify-between gap-12">
             <div className="flex-1 space-y-6">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-3">Budget Dashboard</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/60 mb-3">Budget Dashboard</p>
                 <div className="flex items-center gap-3 mb-4">
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-serif leading-tight text-primary/60">
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-serif leading-tight text-white">
                     You're on track,<br />Alex & Jordan.
                   </h1>
                   <Button
-                    variant="ghost"
+                    variant="secondary"
                     size="icon"
-                    className="shrink-0 rounded-full bg-primary/5 hover:bg-primary/10 text-primary/40 mt-1"
+                    className="shrink-0 rounded-full bg-white/10 hover:bg-white/20 text-white border-none mt-1"
                     onClick={() => setCollabModalOpen(true)}
                     title="Invite Collaborators"
                   >
@@ -200,24 +200,24 @@ export default function Dashboard() {
             </div>
 
             {/* Budget Slider Panel */}
-            <div className="lg:w-80 bg-background/40 backdrop-blur-sm rounded-2xl p-6 border border-border/30 shadow-none flex flex-col justify-center">
+            <div className="lg:w-80 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 shadow-lg flex flex-col justify-center">
               <div className="flex justify-between items-end mb-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/40">Flexible Budget</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-white/70">Flexible Budget</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-2xl font-serif font-bold text-primary/50">${overallBudget[0].toLocaleString()}</p>
+                  <p className="text-2xl font-serif font-bold text-white">${overallBudget[0].toLocaleString()}</p>
                   <button
                     onClick={() => setBudgetLocked((v) => !v)}
-                    className="p-1 rounded-full hover:bg-muted transition-colors"
+                    className="p-1 rounded-full hover:bg-white/10 transition-colors"
                     title={budgetLocked ? "Click to unlock and adjust" : "Lock budget"}
                   >
                     {budgetLocked
-                      ? <Lock className="w-4 h-4 opacity-20" />
-                      : <Unlock className="w-4 h-4 text-amber-500/40" />
+                      ? <Lock className="w-4 h-4 text-white/50" />
+                      : <Unlock className="w-4 h-4 text-accent" />
                     }
                   </button>
                 </div>
               </div>
-              <div className={budgetLocked ? "opacity-30 pointer-events-none" : ""}>
+              <div className={budgetLocked ? "opacity-50 pointer-events-none" : ""}>
                 <Slider
                   value={overallBudget}
                   onValueChange={(v) => { setOverallBudget(v); }}
@@ -229,12 +229,12 @@ export default function Dashboard() {
                 />
               </div>
               {!budgetLocked && (
-                <div className="mt-2 mb-2 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">
-                  <p className="text-[10px] text-amber-600/60 font-bold uppercase tracking-tighter">Unlocked</p>
+                <div className="mt-2 mb-2 bg-accent/20 border border-accent/30 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Unlocked & Adjustable</p>
                 </div>
               )}
               {budgetLocked && (
-                <p className="text-[9px] opacity-30 text-center uppercase tracking-[0.1em] font-bold">LOCKED</p>
+                <p className="text-[9px] text-white/40 text-center uppercase tracking-[0.1em] font-bold">LOCKED</p>
               )}
             </div>
           </div>
@@ -242,16 +242,16 @@ export default function Dashboard() {
 
         {/* ── Smart Insight Alert ── */}
         {showAlert && (
-          <div className="bg-muted/5 px-6 py-4 rounded-2xl border border-border/30 flex items-center justify-between group animate-in slide-in-from-top-4">
-            <div className="flex items-center gap-4 text-primary/40">
-              <AlertCircle className="w-5 h-5 text-muted-foreground/30 shrink-0" />
+          <div className="bg-accent px-6 py-5 rounded-2xl border border-accent flex items-center justify-between group animate-in slide-in-from-top-4 shadow-md">
+            <div className="flex items-center gap-4 text-accent-foreground">
+              <AlertCircle className="w-6 h-6 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-bold text-base opacity-60">Smart Insight</span>
-                <span className="text-xs opacity-40">Your catering is trending 8% over. Consider reallocating from your $5k Decor buffer.</span>
+                <span className="font-bold text-lg">Smart Insight</span>
+                <span className="text-sm font-medium">Your catering is trending 8% over. Consider reallocating from your $5k Decor buffer.</span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setShowAlert(false)} className="rounded-full hover:bg-muted/50 w-8 h-8 opacity-30">
-              <X className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="icon" onClick={() => setShowAlert(false)} className="rounded-full hover:bg-black/10 w-10 h-10 text-accent-foreground">
+              <X className="w-5 h-5" />
             </Button>
           </div>
         )}
@@ -261,9 +261,9 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-12">
             <div className="space-y-6">
               <div className="flex justify-between items-center px-2">
-                <h2 className="text-xl font-serif font-bold text-primary/60 tracking-tight">Budget Categories</h2>
-                <Badge variant="outline" className="bg-muted/10 text-muted-foreground/40 border-border/30 text-[9px] uppercase tracking-widest px-2 py-0">
-                  5 Categories
+                <h2 className="text-2xl font-serif font-bold text-primary tracking-tight">Budget Categories</h2>
+                <Badge variant="secondary" className="bg-secondary text-secondary-foreground text-[10px] uppercase tracking-widest px-3 py-1 font-bold">
+                  5 Categories Total
                 </Badge>
               </div>
 
@@ -274,7 +274,7 @@ export default function Dashboard() {
                   const editVal = catEditVal[cat.name];
 
                   return (
-                    <div key={cat.name} className="bg-card/30 rounded-2xl border border-border/20 overflow-hidden shadow-none transition-all hover:border-border/40">
+                    <div key={cat.name} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all hover:shadow-md hover:border-primary/20">
                       <div
                         className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer"
                         onClick={() => toggleCat(cat.name)}
@@ -282,22 +282,22 @@ export default function Dashboard() {
                         <div className="flex-1">
                           <div className="flex justify-between mb-3 items-end">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg font-serif text-primary/50">{cat.name}</span>
+                              <span className="font-bold text-xl font-serif text-primary">{cat.name}</span>
                               {expandedCats.includes(cat.name)
-                                ? <ChevronUp className="w-3.5 h-3.5 opacity-20" />
-                                : <ChevronDown className="w-3.5 h-3.5 opacity-20" />
+                                ? <ChevronUp className="w-4 h-4 text-primary/50" />
+                                : <ChevronDown className="w-4 h-4 text-primary/50" />
                               }
                             </div>
                             {/* Category target with lock */}
                             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <span className="text-xs text-muted-foreground/40 font-medium">
-                                ${cat.actual.toLocaleString()} <span className="opacity-20">/</span>
+                              <span className="text-sm text-muted-foreground font-bold">
+                                ${cat.actual.toLocaleString()} <span className="text-muted-foreground/30">/</span>
                               </span>
                               {locked ? (
-                                <span className="text-xs text-muted-foreground/40 font-medium">${target.toLocaleString()}</span>
+                                <span className="text-sm text-primary font-bold">${target.toLocaleString()}</span>
                               ) : (
                                 <Input
-                                  className="h-6 w-24 text-xs text-right font-medium px-2 bg-background/30 border-border/20"
+                                  className="h-8 w-28 text-sm text-right font-bold px-3 bg-muted border-primary/20"
                                   value={editVal}
                                   onChange={(e) => setCatEditVal((prev) => ({ ...prev, [cat.name]: e.target.value }))}
                                   onBlur={() => lockCat(cat.name)}
@@ -307,60 +307,60 @@ export default function Dashboard() {
                               )}
                               <button
                                 onClick={() => locked ? unlockCat(cat.name) : lockCat(cat.name)}
-                                className="p-1 rounded hover:bg-muted/30 transition-colors opacity-20 hover:opacity-60"
+                                className="p-1.5 rounded-full hover:bg-muted transition-colors text-primary/40 hover:text-primary"
                                 title={locked ? "Edit target" : "Lock target"}
                               >
                                 {locked
-                                  ? <Lock className="w-3 h-3 text-muted-foreground/40" />
-                                  : <Unlock className="w-3 h-3 text-amber-500/30" />
+                                  ? <Lock className="w-4 h-4" />
+                                  : <Unlock className="w-4 h-4 text-amber-600" />
                                 }
                               </button>
                             </div>
                           </div>
                           <Progress
                             value={Math.min(cat.percentage, 100)}
-                            className={`h-1 rounded-full bg-muted/10 ${
-                              cat.status === "over" ? "[&>div]:bg-amber-500/20" :
-                              cat.status === "on_target" ? "[&>div]:bg-green-600/20" :
-                              "[&>div]:bg-primary/20"
+                            className={`h-2 rounded-full bg-muted ${
+                              cat.status === "over" ? "[&>div]:bg-amber-600" :
+                              cat.status === "on_target" ? "[&>div]:bg-green-600" :
+                              "[&>div]:bg-primary"
                             }`}
                           />
                         </div>
-                        <div className="sm:ml-8 sm:w-28 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center opacity-40">
+                        <div className="sm:ml-8 sm:w-32 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center">
                           {cat.status === "over" && (
                             <div className="text-right">
-                              <span className="text-xs font-bold text-amber-600/50">+${(cat.actual - target).toLocaleString()}</span>
-                              <span className="text-[9px] uppercase font-bold text-muted-foreground/30 tracking-tighter block">Adjust</span>
+                              <span className="text-sm font-bold text-amber-600">+${(cat.actual - target).toLocaleString()}</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Over Target</span>
                             </div>
                           )}
                           {cat.status === "under" && (
                             <div className="text-right">
-                              <span className="text-xs font-bold text-green-600/40">-${(target - cat.actual).toLocaleString()}</span>
-                              <span className="text-[9px] uppercase font-bold text-muted-foreground/30 tracking-tighter block">Left</span>
+                              <span className="text-sm font-bold text-green-600">-${(target - cat.actual).toLocaleString()}</span>
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter block">Remaining</span>
                             </div>
                           )}
-                          {cat.status === "on_target" && <span className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-widest">On Plan</span>}
-                          {cat.status === "pending" && <span className="text-[9px] text-muted-foreground/20 italic uppercase tracking-widest">Pending</span>}
+                          {cat.status === "on_target" && <span className="text-xs font-bold text-primary/60 uppercase tracking-widest">On Plan</span>}
+                          {cat.status === "pending" && <span className="text-xs text-muted-foreground italic uppercase tracking-widest">Awaiting Quotes</span>}
                         </div>
                       </div>
 
                       {expandedCats.includes(cat.name) && (
-                        <div className="bg-muted/5 border-t border-border/10 p-6 space-y-4 animate-in slide-in-from-top-1 duration-200">
+                        <div className="bg-muted/40 border-t border-border p-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
                           {cat.items.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {cat.items.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between bg-background/20 py-2 px-4 rounded-xl border border-border/5 text-[11px] group hover:border-border/20 transition-colors">
-                                  <div className="font-medium text-primary/40">{item.name}</div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="font-bold text-primary/30">${item.cost.toLocaleString()}</div>
-                                    <div className="w-16 flex justify-end">
+                                <div key={idx} className="flex items-center justify-between bg-card py-4 px-5 rounded-xl border border-border text-sm shadow-sm group hover:border-primary/30 transition-colors">
+                                  <div className="font-bold text-primary">{item.name}</div>
+                                  <div className="flex items-center gap-6">
+                                    <div className="font-extrabold text-primary">${item.cost.toLocaleString()}</div>
+                                    <div className="w-20 flex justify-end">
                                       {item.paid ? (
-                                        <Badge variant="outline" className="bg-transparent text-green-700/30 border-green-200/10 text-[8px] py-0 h-3.5 shadow-none">
-                                          Paid
+                                        <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] font-bold py-1 px-3 shadow-none">
+                                          PAID
                                         </Badge>
                                       ) : (
-                                        <Badge variant="outline" className="text-muted-foreground/20 border-muted-foreground/10 text-[8px] py-0 h-3.5 shadow-none">
-                                          Due
+                                        <Badge variant="outline" className="text-muted-foreground border-muted-foreground/40 text-[10px] font-bold py-1 px-3 shadow-none">
+                                          DUE
                                         </Badge>
                                       )}
                                     </div>
@@ -369,13 +369,13 @@ export default function Dashboard() {
                               ))}
                             </div>
                           ) : (
-                            <div className="text-center py-6 text-muted-foreground/20 text-[10px] italic">
-                              No entries yet.
+                            <div className="text-center py-10 text-muted-foreground font-medium text-sm">
+                              No entries in this category yet.
                             </div>
                           )}
-                          <div className="flex justify-center pt-1">
-                            <Button variant="ghost" size="sm" className="text-[9px] text-primary/20 font-bold hover:bg-primary/5 rounded-full h-7 uppercase tracking-widest">
-                              + Add Entry
+                          <div className="flex justify-center pt-2">
+                            <Button variant="default" size="sm" className="text-[10px] font-bold rounded-full h-9 uppercase tracking-[0.15em] px-6">
+                              + Add New Line Item
                             </Button>
                           </div>
                         </div>
@@ -386,29 +386,29 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Budget Snapshot Section - Moved down and muted colors */}
-            <div className="pt-10 border-t border-border/50">
-              <h2 className="text-2xl font-serif font-bold text-primary opacity-30 mb-6 px-2 tracking-tight">Budget Snapshot</h2>
+            {/* Budget Snapshot Section - Moved down and full tone */}
+            <div className="pt-10 border-t border-border">
+              <h2 className="text-2xl font-serif font-bold text-primary mb-6 px-2 tracking-tight">Budget Snapshot</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
-                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Total Invested</p>
-                  <p className="text-3xl font-bold font-serif opacity-30">${(22400).toLocaleString()}</p>
-                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-muted-foreground/10" style={{ width: '34%' }} />
+                <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
+                  <p className="text-[10px] opacity-60 uppercase tracking-widest font-extrabold text-primary">Total Invested</p>
+                  <p className="text-4xl font-bold font-serif text-primary">${(22400).toLocaleString()}</p>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: '34%' }} />
                   </div>
                 </div>
-                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
-                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Remaining</p>
-                  <p className="text-3xl font-bold font-serif opacity-30">${(overallBudget[0] - 22400).toLocaleString()}</p>
-                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-muted-foreground/10" style={{ width: '66%' }} />
+                <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
+                  <p className="text-[10px] opacity-60 uppercase tracking-widest font-extrabold text-primary">Remaining</p>
+                  <p className="text-4xl font-bold font-serif text-primary">${(overallBudget[0] - 22400).toLocaleString()}</p>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-accent" style={{ width: '66%' }} />
                   </div>
                 </div>
-                <div className="space-y-3 p-8 rounded-3xl bg-muted/5 border border-border/20">
-                  <p className="text-[10px] opacity-30 uppercase tracking-widest font-bold">Contingency</p>
-                  <p className="text-3xl font-bold font-serif opacity-30">$6,500</p>
-                  <div className="h-1 w-full bg-muted-foreground/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-muted-foreground/10" style={{ width: '10%' }} />
+                <div className="space-y-4 p-8 rounded-3xl bg-white border border-border shadow-md">
+                  <p className="text-[10px] opacity-60 uppercase tracking-widest font-extrabold text-primary">Contingency</p>
+                  <p className="text-4xl font-bold font-serif text-primary">$6,500</p>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary/40" style={{ width: '10%' }} />
                   </div>
                 </div>
               </div>
@@ -418,56 +418,58 @@ export default function Dashboard() {
           {/* ── Right Column ── */}
           <div className="space-y-8">
             {/* Trade-Offs Card */}
-            <Card className="border-border/20 bg-card/20 shadow-none rounded-3xl overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-2">
-                <Sparkles className="w-6 h-6 text-primary/5" />
+            <Card className="border-border bg-card shadow-lg rounded-3xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-3">
+                <Sparkles className="w-8 h-8 text-accent" />
               </div>
-              <CardHeader className="pb-4 pt-8">
-                <CardTitle className="flex items-center justify-between text-primary/40 font-serif text-xl">
+              <CardHeader className="pb-4 pt-10">
+                <CardTitle className="flex items-center justify-between text-primary font-serif text-2xl">
                   <span>Trade-Offs</span>
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[9px] font-sans font-bold uppercase tracking-widest text-muted-foreground/30">
+                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                       {showTradeoffs ? "On" : "Off"}
                     </span>
                     <Switch
                       checked={showTradeoffs}
                       onCheckedChange={setShowTradeoffs}
                       aria-label="Toggle suggestions"
-                      className="scale-75"
+                      className="data-[state=checked]:bg-accent"
                     />
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6 pb-10">
+              <CardContent className="space-y-8 pb-12">
                 {!showTradeoffs ? (
-                  <div className="py-8 text-center text-muted-foreground/30 text-[10px]">
-                    <p className="text-lg mb-2 opacity-20">⏸</p>
-                    <p className="font-bold uppercase tracking-widest">Paused</p>
+                  <div className="py-12 text-center text-muted-foreground">
+                    <p className="text-3xl mb-4">⏸</p>
+                    <p className="font-bold text-lg">Suggestions Paused</p>
+                    <p className="text-xs mt-2">Toggle back on to see AI trade-offs</p>
                   </div>
                 ) : visibleTradeoffs.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground/30 text-[10px]">
-                    <p className="text-lg mb-2 opacity-20">✅</p>
-                    <p className="font-bold uppercase tracking-widest">Clear</p>
+                  <div className="py-12 text-center text-muted-foreground">
+                    <p className="text-3xl mb-4">✅</p>
+                    <p className="font-bold text-lg">All Reviewed</p>
+                    <p className="text-xs mt-2">You're current on all budget tips</p>
                   </div>
                 ) : (
                   <>
-                    <p className="text-[10px] text-muted-foreground/40 leading-relaxed uppercase tracking-tight font-medium">Optimization ideas:</p>
-                    <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">Smart ways to rebalance your budget:</p>
+                    <div className="space-y-4">
                       {visibleTradeoffs.map((t) => (
-                        <div key={t.id} className="p-3 bg-muted/5 rounded-xl border border-border/10 space-y-1 group transition-all">
+                        <div key={t.id} className="p-5 bg-secondary/50 rounded-2xl border border-border space-y-3 group hover:border-accent transition-all shadow-sm">
                           <div className="flex justify-between items-start">
-                            <div className="font-bold text-[11px] text-primary/40">{t.title}</div>
+                            <div className="font-bold text-base text-primary">{t.title}</div>
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[8px] font-bold uppercase tracking-tighter border-primary/5 text-primary/30 h-3.5 px-1">{t.saving}</Badge>
+                              <Badge className="bg-primary text-primary-foreground text-[10px] font-bold py-1 px-3 shadow-sm">{t.saving}</Badge>
                               <button
                                 onClick={() => dismissSuggestion(t.id)}
-                                className="text-muted-foreground/20 hover:text-foreground/40 transition-colors"
+                                className="text-muted-foreground hover:text-destructive transition-colors p-1"
                               >
-                                <XCircle className="w-3 h-3" />
+                                <XCircle className="w-5 h-5" />
                               </button>
                             </div>
                           </div>
-                          <p className="text-[10px] text-muted-foreground/30 leading-tight">{t.description}</p>
+                          <p className="text-xs text-muted-foreground leading-snug font-medium">{t.description}</p>
                         </div>
                       ))}
                     </div>
@@ -477,21 +479,21 @@ export default function Dashboard() {
             </Card>
 
             {/* Payment Timeline */}
-            <div className="bg-muted/5 p-6 rounded-3xl border border-border/10 space-y-4">
-              <h3 className="font-serif font-bold text-lg text-primary/30 tracking-tight">Timeline</h3>
-              <div className="space-y-5 pt-2 relative">
-                <div className="absolute left-1 top-4 bottom-4 w-[1px] bg-border/10" />
+            <div className="bg-secondary p-8 rounded-3xl border border-border space-y-6 shadow-md">
+              <h3 className="font-serif font-bold text-2xl text-primary tracking-tight">Payment Timeline</h3>
+              <div className="space-y-8 pt-4 relative">
+                <div className="absolute left-1.5 top-8 bottom-8 w-[2px] bg-primary/20" />
                 {[
                   { date: "Mar 15", label: "DJ Final Balance", amount: "$3,000", done: false },
                   { date: "Apr 02", label: "Catering 50% Milestone", amount: "$6,250", done: false },
                   { date: "May 20", label: "Florist Retainer", amount: "$1,500", done: false },
                 ].map((p, i) => (
-                  <div key={i} className="flex gap-4 relative z-10">
-                    <div className="w-2 h-2 rounded-full bg-border/20 mt-1.5" />
-                    <div className="opacity-40">
-                      <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em]">{p.date}</p>
-                      <p className="text-xs font-bold text-primary/60">{p.label}</p>
-                      <p className="text-[10px] text-primary/40 font-medium">{p.amount}</p>
+                  <div key={i} className="flex gap-5 relative z-10">
+                    <div className="w-3.5 h-3.5 rounded-full bg-primary mt-1.5 ring-4 ring-primary/10 shadow-sm" />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-[0.2em]">{p.date}</p>
+                      <p className="text-base font-bold text-primary leading-tight">{p.label}</p>
+                      <p className="text-sm text-primary font-extrabold opacity-70">{p.amount}</p>
                     </div>
                   </div>
                 ))}
