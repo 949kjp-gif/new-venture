@@ -952,7 +952,7 @@ export default function QuoteNormalizer() {
         <div className="border-b border-border pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-primary mb-3 font-serif">
-              True Cost Quote Normalizer
+              Quote Analysis
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl">
               Upload confusing vendor PDFs. We extract the true all-in cost, expose hidden fees, and

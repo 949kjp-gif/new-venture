@@ -1,0 +1,2127 @@
+ Update(client/src/hooks/use-auth.tsx)
+  ⎿  Added 4 lines, removed 1 line
+      1 -import { createContext, useContext, ReactNode } from "react";                
+      1 +import { createContext, useContext, useState, ReactNode } from "react";      
+      2  import { useQuery, useMutation, UseMutationResult } from "@tanstack/react-que
+         ry";
+      3  import { useLocation } from "wouter";
+      4  import { apiRequest, getQueryFn, queryClient } from "@/lib/queryClient";
+     ...
+       9  type AuthContextType = {
+      10    user: User | null;
+      11    isLoading: boolean;
+      12 +  isDemoMode: boolean;                                                      
+      13 +  enterDemoMode: () => void;                                                
+      14 +  exitDemoMode: () => void;                                                 
+      15    loginMutation: UseMutationResult<User, Error, AuthCredentials>;
+      16    logoutMutation: UseMutationResult<void, Error, void>;
+      17    registerMutation: UseMutationResult<User, Error, AuthCredentials>;
+
+
+
+
+
+
+
+
+● Update(client/src/hooks/use-auth.tsx)
+  ⎿  Added 11 lines
+      21  
+      22  export function AuthProvider({ children }: { children: ReactNode }) {
+      23    const [, setLocation] = useLocation();
+      24 +  const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem("d
+         +emoMode") === "true");                                                      
+      25  
+      26 +  const enterDemoMode = () => {                                             
+      27 +    localStorage.setItem("demoMode", "true");                               
+      28 +    setIsDemoMode(true);                                                    
+      29 +  };                                                                        
+      30 +                                                                            
+      31 +  const exitDemoMode = () => {                                              
+      32 +    localStorage.removeItem("demoMode");                                    
+      33 +    setIsDemoMode(false);                                                   
+      34 +  };                                                                        
+      35 +                                                                            
+      36    const { data: user, isLoading } = useQuery<User | null>({
+      37      queryKey: ["/api/user"],
+      38      queryFn: getQueryFn({ on401: "returnNull" }),
+
+
+
+
+
+
+
+
+● Update(client/src/hooks/use-auth.tsx)
+  ⎿  Added 2 lines
+      44        return res.json() as Promise<User>;
+      45      },
+      46      onSuccess: (user) => {
+      47 +      exitDemoMode();                                                       
+      48        queryClient.setQueryData(["/api/user"], user);
+      49      },
+      50    });
+     ...
+      55        return res.json() as Promise<User>;
+      56      },
+      57      onSuccess: (user) => {
+      58 +      exitDemoMode();                                                       
+      59        queryClient.setQueryData(["/api/user"], user);
+      60      },
+      61    });
+
+
+
+
+
+● Update(client/src/hooks/use-auth.tsx)
+  ⎿  Added 3 lines
+      75        value={{
+      76          user: user ?? null,
+      77          isLoading,
+      78 +        isDemoMode,                                                         
+      79 +        enterDemoMode,                                                      
+      80 +        exitDemoMode,                                                       
+      81          loginMutation,
+      82          logoutMutation,
+      83          registerMutation,
+
+● Now update ProtectedRoute in App.tsx to allow demo mode through:
+
+● Update(client/src/App.tsx)
+  ⎿  Added 4 lines, removed 4 lines
+      16  import AuthPage from "@/pages/auth-page";
+      17  
+      18  function ProtectedRoute({ component: Component }: { component: React.Compone
+          ntType }) {
+      19 -  const { user, isLoading } = useAuth();                                    
+      19 +  const { user, isLoading, isDemoMode } = useAuth();                        
+      20    const [, setLocation] = useLocation();
+      21  
+      22    useEffect(() => {
+      23 -    if (!isLoading && !user) {                                              
+      23 +    if (!isLoading && !user && !isDemoMode) {                               
+      24        setLocation("/auth");
+      25      }
+      26 -  }, [user, isLoading, setLocation]);                                       
+      26 +  }, [user, isLoading, isDemoMode, setLocation]);                           
+      27  
+      28    if (isLoading) {
+      29      return (
+     ...
+      33      );
+      34    }
+      35  
+      36 -  if (!user) return null;                                                   
+      36 +  if (!user && !isDemoMode) return null;                                    
+      37  
+      38    return <Component />;
+      39  }
+
+
+
+
+
+
+
+
+
+
+● Now update Shell.tsx to show a "Get Started" button in demo mode and hide the logout
+  section:
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 1 line, removed 1 line
+      2  import { Link, useLocation } from "wouter";
+      3  import {
+      4    LayoutDashboard, Calculator, FileText, Sparkles,
+      5 -  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X, LogOut,  
+      5 +  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X, LogOut, A
+        +rrowRight,                                                                   
+      6  } from "lucide-react";
+      7  import { Button } from "@/components/ui/button";
+      8  import { Input } from "@/components/ui/input";
+
+
+
+
+
+
+
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 2 lines, removed 1 line
+      29  export function Shell({ children }: { children: React.ReactNode }) {
+      30    const [location] = useLocation();
+      31    const [collapsed, setCollapsed] = useState(false);
+      32 -  const { user, logoutMutation } = useAuth();                               
+      32 +  const { user, logoutMutation, isDemoMode, exitDemoMode } = useAuth();     
+      33 +  const [, setLocation] = useLocation();                                    
+      34    const [chatOpen, setChatOpen] = useState(false);
+      35    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+      36      {
+
+
+
+
+
+
+
+
+● Now update the sidebar bottom section and add a demo-mode banner to the main content area:
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 39 lines, removed 16 lines
+      111  
+      112          {/* Bottom: user + collapse */}
+      113          <div className={cn("p-4 border-t border-border space-y-2", collapse
+           d ? "flex flex-col items-center" : "")}>
+      114 -          {/* Username */}                                                 
+      115 -          {!collapsed && user && (                                         
+      116 -            <p className="text-xs text-muted-foreground truncate px-1">    
+      117 -              Signed in as <span className="font-medium text-foreground">{u
+          -ser.username}</span>                                                       
+      118 -            </p>                                                           
+      114 +          {isDemoMode ? (                                                  
+      115 +            <>                                                             
+      116 +              {!collapsed && (                                             
+      117 +                <p className="text-xs text-muted-foreground px-1">Viewing d
+          +emo</p>                                                                    
+      118 +              )}                                                           
+      119 +              <Link href="/auth">                                          
+      120 +                <a                                                         
+      121 +                  onClick={exitDemoMode}                                   
+      122 +                  className={cn(                                           
+      123 +                    "flex items-center gap-2 text-xs font-medium text-prima
+          +ry hover:text-primary/80 transition-colors w-full",                        
+      124 +                    collapsed ? "justify-center" : ""                      
+      125 +                  )}                                                       
+      126 +                  title="Get Started"                                      
+      127 +                >                                                          
+      128 +                  <ArrowRight className="w-4 h-4 shrink-0" />              
+      129 +                  {!collapsed && <span>Get Started</span>}                 
+      130 +                </a>                                                       
+      131 +              </Link>                                                      
+      132 +            </>                                                            
+      133 +          ) : (                                                            
+      134 +            <>                                                             
+      135 +              {/* Username */}                                             
+      136 +              {!collapsed && user && (                                     
+      137 +                <p className="text-xs text-muted-foreground truncate px-1">
+      138 +                  Signed in as <span className="font-medium text-foreground
+          +">{user.username}</span>                                                   
+      139 +                </p>                                                       
+      140 +              )}                                                           
+      141 +                                                                           
+      142 +              {/* Logout */}                                               
+      143 +              <button                                                      
+      144 +                onClick={() => logoutMutation.mutate()}                    
+      145 +                disabled={logoutMutation.isPending}                        
+      146 +                className="flex items-center gap-2 text-xs text-muted-foreg
+          +round hover:text-destructive transition-colors w-full"                     
+      147 +                title="Log out"                                            
+      148 +              >                                                            
+      149 +                <LogOut className="w-4 h-4 shrink-0" />                    
+      150 +                {!collapsed && <span>Log out</span>}                       
+      151 +              </button>                                                    
+      152 +            </>                                                            
+      153            )}
+      154  
+      121 -          {/* Logout */}                                                   
+      122 -          <button                                                          
+      123 -            onClick={() => logoutMutation.mutate()}                        
+      124 -            disabled={logoutMutation.isPending}                            
+      125 -            className="flex items-center gap-2 text-xs text-muted-foregroun
+          -d hover:text-destructive transition-colors w-full"                         
+      126 -            title="Log out"                                                
+      127 -          >                                                                
+      128 -            <LogOut className="w-4 h-4 shrink-0" />                        
+      129 -            {!collapsed && <span>Log out</span>}                           
+      130 -          </button>                                                        
+      131 -                                                                           
+      155            {/* Collapse toggle */}
+      156            <button
+      157              onClick={() => setCollapsed((v) => !v)}
+
+● Now add the "Get Started" banner at the top of the main content area and update the mobile
+  header:
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 35 lines, removed 9 lines
+      173  
+      174        {/* ── Main Content ── */}
+      175        <main className="flex-1 overflow-y-auto relative">
+      176 +        {/* Demo mode top bar (desktop) */}                                
+      177 +        {isDemoMode && (                                                   
+      178 +          <div className="hidden md:flex sticky top-0 z-40 bg-background/95
+          + backdrop-blur border-b border-border items-center justify-between px-6 py-
+          +2">                                                                        
+      179 +            <p className="text-xs text-muted-foreground">                  
+      180 +              <span className="font-medium text-foreground">Demo mode</span
+          +> — explore the app freely                                                 
+      181 +            </p>                                                           
+      182 +            <Link href="/auth">                                            
+      183 +              <a onClick={exitDemoMode}>                                   
+      184 +                <Button size="sm" className="rounded-full px-5 gap-1.5">   
+      185 +                  Get Started <ArrowRight className="w-3.5 h-3.5" />       
+      186 +                </Button>                                                  
+      187 +              </a>                                                         
+      188 +            </Link>                                                        
+      189 +          </div>                                                           
+      190 +        )}                                                                 
+      191 +                                                                           
+      192          {/* Mobile header */}
+      193          <div className="md:hidden p-4 border-b border-border bg-card flex j
+           ustify-between items-center">
+      194            <Link href="/">
+     ...
+      198              </a>
+      199            </Link>
+      200            <div className="flex items-center gap-4 text-sm font-medium text-
+           muted-foreground">
+      185 -            <Link href="/dashboard"><a className={location === "/dashboard"
+          - ? "text-primary" : ""}>Menu</a></Link>                                    
+      186 -            <button                                                        
+      187 -              onClick={() => logoutMutation.mutate()}                      
+      188 -              disabled={logoutMutation.isPending}                          
+      189 -              className="flex items-center gap-1 hover:text-destructive tra
+          -nsition-colors"                                                            
+      190 -            >                                                              
+      191 -              <LogOut className="w-4 h-4" />                               
+      192 -              <span className="sr-only">Log out</span>                     
+      193 -            </button>                                                      
+      201 +            {isDemoMode ? (                                                
+      202 +              <Link href="/auth">                                          
+      203 +                <a onClick={exitDemoMode} className="flex items-center gap-
+          +1 font-medium text-primary">                                               
+      204 +                  Get Started <ArrowRight className="w-3.5 h-3.5" />       
+      205 +                </a>                                                       
+      206 +              </Link>                                                      
+      207 +            ) : (                                                          
+      208 +              <>                                                           
+      209 +                <Link href="/dashboard"><a className={location === "/dashbo
+          +ard" ? "text-primary" : ""}>Menu</a></Link>                                
+      210 +                <button                                                    
+      211 +                  onClick={() => logoutMutation.mutate()}                  
+      212 +                  disabled={logoutMutation.isPending}                      
+      213 +                  className="flex items-center gap-1 hover:text-destructive
+          + transition-colors"                                                        
+      214 +                >                                                          
+      215 +                  <LogOut className="w-4 h-4" />                           
+      216 +                  <span className="sr-only">Log out</span>                 
+      217 +                </button>                                                  
+      218 +              </>                                                          
+      219 +            )}                                                             
+      220            </div>
+      221          </div>
+      222  
+
+● Now update the home page "View Demo Dashboard" button to call enterDemoMode before
+  navigating:
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 4 lines, removed 1 line
+       1 -import { Link } from "wouter";                                              
+       1 +import { Link, useLocation } from "wouter";                                 
+       2  import { Button } from "@/components/ui/button";
+       3  import heroBg from "@/assets/images/hero-bg.png";
+       4  import { Sparkles, Calculator, FileSearch, TrendingDown, ArrowRight } from "
+          lucide-react";
+       5 +import { useAuth } from "@/hooks/use-auth";                                 
+       6  
+       7  export default function Home() {
+       8 +  const { enterDemoMode } = useAuth();                                      
+       9 +  const [, setLocation] = useLocation();                                    
+      10    return (
+      11      <div className="min-h-screen relative flex flex-col">
+      12        <div className="absolute inset-0 z-0">
+
+
+
+
+
+
+
+
+
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 8 lines, removed 5 lines
+      47                Start Free Budget
+      48              </Button>
+      49            </Link>
+      50 -          <Link href="/dashboard">                                          
+      51 -            <Button size="lg" variant="outline" className="rounded-full px-8
+         - h-14 text-lg border-border hover:bg-muted w-full sm:w-auto">               
+      52 -              View Demo Dashboard                                           
+      53 -            </Button>                                                       
+      54 -          </Link>                                                           
+      50 +          <Button                                                           
+      51 +            size="lg"                                                       
+      52 +            variant="outline"                                               
+      53 +            className="rounded-full px-8 h-14 text-lg border-border hover:bg
+         +-muted w-full sm:w-auto"                                                    
+      54 +            onClick={() => { enterDemoMode(); setLocation("/dashboard"); }} 
+      55 +          >                                                                 
+      56 +            View Demo Dashboard                                             
+      57 +          </Button>                                                         
+      58          </div>
+      59        </main>
+      60  
+
+
+
+
+
+
+● Let me verify the final state of all changed files looks correct:
+
+● Read 1 file (ctrl+o to expand)
+
+● The setLocation on line 33 is unused since the Shell doesn't need to navigate imperatively.
+   Let me clean that up:
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Removed 1 line
+      30    const [location] = useLocation();
+      31    const [collapsed, setCollapsed] = useState(false);
+      32    const { user, logoutMutation, isDemoMode, exitDemoMode } = useAuth();
+      33 -  const [, setLocation] = useLocation();                                    
+      33    const [chatOpen, setChatOpen] = useState(false);
+      34    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+      35      {
+
+
+
+
+
+
+● Now let me do a quick check to make sure there are no TypeScript issues — particularly that
+   useLocation is still imported (it is, used for location on line 30):
+
+● Read 1 file (ctrl+o to expand)
+
+● Everything looks good. Here's a summary of what was changed:
+
+  How it works now:
+
+  1. "View Demo Dashboard" on the home page calls enterDemoMode() (sets a demoMode flag in
+  localStorage) then navigates directly to /dashboard — no login required.
+  2. ProtectedRoute now checks isDemoMode and lets demo users through all protected pages
+  (dashboard, builder, quote normalizer, planning).
+  3. Shell — desktop: A sticky top bar appears above the page content when in demo mode, with
+   "Viewing demo" text on the left and a "Get Started →" button on the right.
+  4. Shell — sidebar bottom: In demo mode, the logout button is replaced with a "Get Started
+  →" link.
+  5. Shell — mobile: The mobile header swaps the logout button for a "Get Started →" link in
+  demo mode.
+  6. Clicking "Get Started" anywhere calls exitDemoMode() (clears the flag) and navigates to
+  /auth. Completing login/register also auto-clears demo mode.
+
+✻ Crunched for 2m 34s
+
+❯ can you change True Cost Normalizer to Quote Analysis 
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 1 line, removed 1 line
+      141                <div className="w-12 h-12 bg-primary/10 text-primary rounded-
+           xl flex items-center justify-center mb-6">
+      142                  <FileSearch className="w-6 h-6" />
+      143                </div>
+      144 -              <h3 className="text-xl font-bold mb-3">True Cost Normalizer</
+          -h3>                                                                        
+      144 +              <h3 className="text-xl font-bold mb-3">Quote Analysis</h3>   
+      145                <p className="text-muted-foreground">Upload confusing vendor
+           PDFs. Our AI extracts line items, applies hidden taxes, and reveals the tru
+           e all-in cost so you can compare fairly.</p>
+      146              </div>
+      147  
+
+
+
+
+
+
+
+
+
+
+● Done. Also worth checking if "Quote Normalizer" (the nav label and page titles) should be
+  updated to match:
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● The sidebar nav label says "Quote Normalizer" and the page itself has "True Cost Quote
+  Normalizer". Do you want those updated to "Quote Analysis" too, or just the features
+  section on the home page?
+
+❯ yes update all of them to Quote Analysis 
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 1 line, removed 1 line
+      44    const links = [
+      45      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      46      { href: "/builder", label: "Budget Builder", icon: Calculator },
+      47 -    { href: "/quote-normalizer", label: "Quote Normalizer", icon: FileText }
+         -,                                                                           
+      47 +    { href: "/quote-normalizer", label: "Quote Analysis", icon: FileText }, 
+      48      { href: "/planning", label: "Planning", icon: ClipboardList },
+      49    ];
+      50  
+
+
+
+
+
+
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 1 line, removed 1 line
+       94                <div className="w-24 h-24 rounded-full bg-primary flex items-
+           center justify-center text-primary-foreground text-3xl font-bold font-serif
+            shadow-xl ring-8 ring-primary/10">
+       95                  2
+       96                </div>
+       97 -              <h3 className="text-xl font-bold text-primary">Normalize Vend
+          -or Quotes</h3>                                                             
+       97 +              <h3 className="text-xl font-bold text-primary">Quote Analysis
+          +</h3>                                                                      
+       98                <p className="text-muted-foreground text-sm leading-relaxed">
+       99                  Upload confusing vendor proposals. We expose hidden fees, m
+           andatory gratuities, and surprise extras — so you can compare vendors on a
+           true apples-to-apples basis.
+      100                </p>
+
+
+
+
+
+
+
+
+
+
+
+● Update(client/src/pages/quote-normalizer.tsx)
+  ⎿  Added 1 line, removed 1 line
+      952          <div className="border-b border-border pb-6 flex flex-col md:flex-r
+           ow md:items-end justify-between gap-4">
+      953            <div>
+      954              <h1 className="text-4xl font-bold text-primary mb-3 font-serif"
+           >
+      955 -              True Cost Quote Normalizer                                   
+      955 +              Quote Analysis                                               
+      956              </h1>
+      957              <p className="text-lg text-muted-foreground max-w-2xl">
+      958                Upload confusing vendor PDFs. We extract the true all-in cost
+           , expose hidden fees, and
+
+
+
+
+
+
+
+● Done. Updated in all three places:
+  - Sidebar nav label (Shell.tsx)
+  - "How It Works" step 2 heading (home.tsx)
+  - Features card heading (home.tsx)
+  - Page title on the Quote Analysis page (quote-normalizer.tsx)
+
+❯ create a "Notes" tab that allows couples to add notes from meetings etc. and save it   
+  to their google drive or sync with google drive as well                                
+
+● Explore(Explore codebase structure)
+  ⎿  Done (21 tool uses · 56.9k tokens · 41s)
+  (ctrl+o to expand)
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Good. Now I have full context. Let me plan and build this:
+  - New notes.tsx page with a two-column layout (list + editor)
+  - use-google-drive.ts hook using Google Identity Services + Drive REST API
+  - Add the Notes route and sidebar nav link
+
+● Write(client/src/hooks/use-google-drive.ts)
+  ⎿  Wrote 203 lines to client/src/hooks/use-google-drive.ts
+       1 import { useState, useCallback, useEffect, useRef } from "react";
+       2
+       3 export interface Note {
+       4   id: string;
+       5   title: string;
+       6   content: string;
+       7   tags: string[];
+       8   createdAt: string;
+       9   updatedAt: string;
+      10 }
+     … +193 lines (ctrl+o to expand)
+
+
+● Write(client/src/pages/notes.tsx)
+  ⎿  Wrote 484 lines to client/src/pages/notes.tsx
+       1 import { useState, useEffect, useRef, useCallback } f
+         rom "react";
+       2 import { Shell } from "@/components/layout/Shell";
+       3 import { Button } from "@/components/ui/button";
+       4 import { Input } from "@/components/ui/input";
+       5 import { Badge } from "@/components/ui/badge";
+       6 import { cn } from "@/lib/utils";
+       7 import { useGoogleDrive, type Note } from "@/hooks/us
+         e-google-drive";
+       8 import {
+       9   Plus, Search, Trash2, HardDrive, RefreshCw, FileTex
+         t,
+      10   Tag, ChevronLeft, Check, CloudOff,
+     … +474 lines (ctrl+o to expand)
+
+● Now add the route in App.tsx and the nav link in Shell.tsx:
+
+● Update(client/src/App.tsx)
+  ⎿  Added 1 line
+      13  import Dashboard from "@/pages/dashboard";
+      14  import QuoteNormalizer from "@/pages/quote-normalizer";
+      15  import Planning from "@/pages/planning";
+      16 +import Notes from "@/pages/notes";                                          
+      17  import AuthPage from "@/pages/auth-page";
+      18  
+      19  function ProtectedRoute({ component: Component }: { component: React.Compone
+          ntType }) {
+
+
+● Update(client/src/App.tsx)
+  ⎿  Added 3 lines
+      56        <Route path="/planning">
+      57          <ProtectedRoute component={Planning} />
+      58        </Route>
+      59 +      <Route path="/notes">                                                 
+      60 +        <ProtectedRoute component={Notes} />                                
+      61 +      </Route>                                                              
+      62        <Route component={NotFound} />
+      63      </Switch>
+      64    );
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 1 line, removed 1 line
+      2  import { Link, useLocation } from "wouter";
+      3  import {
+      4    LayoutDashboard, Calculator, FileText, Sparkles,
+      5 -  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X, LogOut, A
+        -rrowRight,                                                                   
+      5 +  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X, LogOut, A
+        +rrowRight, NotebookPen,                                                      
+      6  } from "lucide-react";
+      7  import { Button } from "@/components/ui/button";
+      8  import { Input } from "@/components/ui/input";
+
+● Update(client/src/components/layout/Shell.tsx)
+  ⎿  Added 1 line
+      46      { href: "/builder", label: "Budget Builder", icon: Calculator },
+      47      { href: "/quote-normalizer", label: "Quote Analysis", icon: FileText },
+      48      { href: "/planning", label: "Planning", icon: ClipboardList },
+      49 +    { href: "/notes", label: "Notes", icon: NotebookPen },                  
+      50    ];
+      51  
+      52    const sendMessage = () => {
+
+
+
+
+
+● Done. Here's what was built:
+
+  Notes page (/notes)
+  - Two-column layout: note list on the left, editor on the right
+  - Mobile: switches between list view and editor with a back button
+  - Auto-saves to localStorage with a 400ms debounce — no manual save needed
+  - Tags: Vendor Meeting, Venue, Budget, Timeline, Personal, To-Do — toggle to apply
+  - Search filters by title, content, or tag
+  - Relative timestamps ("2h ago", "Yesterday", etc.)
+  - Delete note button in the editor toolbar
+
+  Google Drive sync (bottom of the list panel)
+  - Requires VITE_GOOGLE_CLIENT_ID set in your .env — shows a helpful message if not
+  configured
+  - "Connect Google Drive" triggers the OAuth popup (requesting only drive.file scope — can
+  only see files this app creates)
+  - "Save to Drive" uploads all notes as wedagent-notes.json to the user's Drive
+  - "Load from Drive" pulls notes back and merges (Drive wins for conflicts, local-only notes
+   are preserved)
+  - Handles token expiry gracefully with a reconnect prompt
+
+  Sidebar nav — "Notes" link with a NotebookPen icon added to all pages
+
+✻ Baked for 7m 53s
+
+❯ Can you add a Chatbot on the side of each of the pages that users can ask questions to 
+  Can you add a Guest count tab on the left to help people stay organized                
+  Improve the onboarding experience by showing a quick click-thru of the various pages   
+  in the app, and add two pricing tiers - a free trial for a month and then a set fee,   
+  with some premium features                                                             
+  Add tips on how to navigate conversations with vendors. Maybe break out checklist with 
+   vendor management (status and payments)                                               
+                                                                                         
+
+● Let me explore the relevant parts of the codebase before planning these four features.
+
+● 2 Explore agents finished (ctrl+o to expand)
+   ├─ Explore planning and Shell chat · 2 tool uses · 11.2k tokens
+   │  ⎿  Done
+   └─ Explore home, auth, and dashboard pages · 5 tool uses · 11.2k tokens
+      ⎿  Done
+
+● Good, I have thorough context. Let me ask a few important questions before writing the
+  plan, since these affect scope and implementation significantly.
+
+● User answered Claude's questions:
+  ⎿  · For the chatbot — the app already has a floating chat button (bottom-right) that
+     opens a bottom drawer. Should I replace that with a collapsible right-side panel
+     that slides in alongside the page content, or keep the drawer but make it more
+     prominent/accessible? → Right-side panel
+     · For pricing, what should the paid tier cost? (The free tier = 30-day full-access
+     trial, no credit card.) → TBD — use placeholder
+     · For vendor management — should the enhanced vendor section stay inside the
+     Planning page, or get its own dedicated Vendors page in the sidebar nav? →
+     Dedicated Vendors page
+
+● Now I have everything I need. Let me write the implementation plan.
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/iterative-cuddling-crescent.md · /plan to edit
+     Implementation Plan: Four Feature Additions
+
+     Context
+
+     The user wants four significant additions to WedAgent:
+     1. A collapsible right-side AI chat panel on every page (replacing the current
+     floating button + bottom drawer)
+     2. A dedicated Guest List page for organizing guests (RSVP, dietary needs, tables)
+     3. An onboarding tour (click-through first-time modal) + a pricing section on the
+     home page
+     4. A dedicated Vendors page with enhanced management, payment tracking, and vendor
+     negotiation tips
+
+     User decisions: Chat → right-side panel (open by default, collapsible); Pricing →
+     placeholder amounts; Vendors → dedicated page.
+
+     ---
+     Feature 1: Collapsible Right-Side Chat Panel
+
+     Goal: Replace the floating MessageSquare button + bottom Drawer with a persistent,
+     collapsible right panel inside Shell.tsx. Open by default on desktop; mobile keeps
+     sheet/bottom behavior.
+
+     Changes to client/src/components/layout/Shell.tsx:
+     - Remove: Drawer, DrawerContent, DrawerHeader, DrawerTitle imports; floating
+     <button> with fixed positioning; entire <Drawer> JSX block
+     - Add: chatPanelOpen state (default true), toggled by a button on the right edge
+     - Layout change: The outer flex container becomes flex with three columns: sidebar
+     | main content | chat panel
+     - Chat panel: w-80 border-l border-border flex flex-col bg-card when open, w-0
+     overflow-hidden when collapsed
+     - Toggle button: sits at the top-right of the main content area (sticky top-0),
+     shows MessageSquare icon with open/close chevron
+     - Mobile: panel hidden (hidden md:flex); keep a floating button that opens a Sheet
+     (reuse existing Drawer behavior)
+     - Remove: MessageSquare from imports on mobile path; keep for desktop toggle button
+
+     ---
+     Feature 2: Guest List Page
+
+     Goal: New /guests route with a full guest management table — add/edit/remove
+     guests, track RSVP, dietary restrictions, table assignments. localStorage
+     persistence.
+
+     New file: client/src/pages/guests.tsx
+
+     Data structure:
+     interface Guest {
+       id: string;
+       name: string;
+       plusOne: boolean;
+       rsvp: "pending" | "attending" | "declined";
+       dietary: string;   // free text: "vegan", "gluten-free", etc.
+       table: string;     // table name or number, free text
+       side: "partner1" | "partner2" | "both";
+       notes: string;
+     }
+
+     UI sections:
+     - Header: title, "Add Guest" button, summary stats bar (Total invited | Attending |
+      Declined | Pending | Dietary needs count)
+     - Filter row: RSVP status filter tabs + search by name
+     - Guest table: sortable by name/rsvp/table; each row shows all fields
+     inline-editable on click; delete button
+     - Add Guest dialog: form with all fields above
+     - Persistence: localStorage.setItem("wedagent_guests", ...)
+
+     Changes to client/src/App.tsx:
+     - Import Guests from @/pages/guests
+     - Add <Route path="/guests"><ProtectedRoute component={Guests} /></Route>
+
+     Changes to client/src/components/layout/Shell.tsx:
+     - Add { href: "/guests", label: "Guest List", icon: Users } to nav links array
+     - Add Users to lucide-react imports
+
+     ---
+     Feature 3: Onboarding Tour + Pricing Section
+
+     3a. Onboarding Tour
+
+     New file: client/src/components/OnboardingTour.tsx
+
+     Trigger: Rendered inside Shell.tsx. Shown when
+     localStorage.getItem("wedagent_toured") !== "true" AND user is authenticated (not
+     demo). On completion or skip, set localStorage.setItem("wedagent_toured", "true").
+
+     UI: Full-screen overlay (fixed inset-0 z-50 bg-background/80 backdrop-blur-sm) with
+      a centered card. 7 steps:
+
+     ┌──────┬─────────────────┬───────────────────┬─────────────────────────────────────
+     ────┐
+     │ Step │      Icon       │       Title       │               Description
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 1    │ Sparkles        │ Welcome to        │ Your AI wedding CFO — plan smarter,
+         │
+     │      │                 │ WedAgent          │ stress less
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 2    │ LayoutDashboard │ Dashboard         │ See your full budget at a glance
+     with   │
+     │      │                 │                   │ live alerts
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 3    │ Calculator      │ Budget Builder    │ Build a realistic, market-adjusted
+         │
+     │      │                 │                   │ budget in minutes
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 4    │ FileText        │ Quote Analysis    │ Upload vendor quotes and uncover
+     hidden │
+     │      │                 │                   │  fees
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 5    │ ClipboardList   │ Planning &        │ Track every task and milestone on
+     the   │
+     │      │                 │ Milestones        │ road to your day
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 6    │ Building2       │ Vendor Management │ Manage all vendors, contracts,
+     payments │
+     │      │                 │                   │  in one place
+         │
+     ├──────┼─────────────────┼───────────────────┼─────────────────────────────────────
+     ────┤
+     │ 7    │ NotebookPen     │ Notes & Guest     │ Capture meeting notes and manage
+     your   │
+     │      │                 │ List              │ guest list
+         │
+     └──────┴─────────────────┴───────────────────┴─────────────────────────────────────
+     ────┘
+
+     Navigation: Back / Next (or "Get Started" on last step), Skip link at bottom, step
+     dots indicator.
+
+     Changes to client/src/components/layout/Shell.tsx:
+     - Import and render <OnboardingTour /> inside the Shell return (above children)
+
+     3b. Pricing Section on Home Page
+
+     Changes to client/src/pages/home.tsx:
+
+     Add a new <section id="pricing"> between the Features section and the end of the
+     page. Also add "Pricing" to the header nav links.
+
+     Two pricing cards side by side:
+
+     Free Trial card (outlined):
+     - Badge: "Start Free"
+     - Price: "30 days free"
+     - Subtitle: "No credit card required"
+     - Features list (5 items): Budget Builder, Dashboard, Quote Analysis (3 quotes),
+     Planning & Milestones, Guest List (up to 25)
+
+     Pro card (filled/primary, "Most Popular" badge):
+     - Price: "$X / month" (placeholder)
+     - Subtitle: "After free trial"
+     - Features list (7 items): Everything in Free +, Unlimited quotes, Full guest list,
+      Vendor management, Notes & Drive sync, AI chat assistant, Priority support
+     - CTA: "Start Free Trial" → /auth
+
+     ---
+     Feature 4: Dedicated Vendors Page
+
+     Goal: Move vendor management out of planning.tsx to a rich dedicated /vendors page.
+      Add contact info, payment fields, notes per vendor. Add a "Vendor Tips" section
+     with negotiation guidance per category.
+
+     New file: client/src/pages/vendors.tsx
+
+     Enhanced data structure:
+     interface Vendor {
+       id: string;
+       category: string;
+       vendorName: string;
+       contactName: string;
+       email: string;
+       phone: string;
+       status: "searching" | "contacted" | "quoted" | "booked";
+       contractSigned: boolean;
+       depositPaid: boolean;
+       depositAmount: string;
+       depositDue: string;
+       finalAmount: string;
+       finalDue: string;
+       notes: string;
+     }
+
+     UI layout — two tabs at top: "My Vendors" | "Vendor Tips"
+
+     My Vendors tab:
+     - Summary strip: X vendors booked / X contracts signed / X deposits paid
+     - Vendor cards (one per category) showing: status badge, contact info, payment
+     checklist, notes field
+     - "Edit" expands inline; all fields editable
+     - Add custom vendor button
+
+     Vendor Tips tab:
+     - Accordion by category (Venue, Catering, Photography, Videography, Florals,
+     Attire, Entertainment)
+     - Each accordion section contains:
+       - Questions to ask (3–5 bullet points)
+       - Red flags to watch for (2–3 points)
+       - Sample script opener for the first contact email/call
+
+     Vendor tips content (per category):
+     - Venue: Ask about all-in fees (setup, breakdown, overtime, parking), exclusivity
+     periods, preferred vendor lists, weather contingency
+     - Catering: Per-head cost breakdown, cake cutting & corkage fees, staffing ratios,
+     overtime policy, tasting inclusion
+     - Photography: Confirm lead photographer's name, turnaround time, full licensing,
+     backup equipment, second shooter
+     - Florals: Mock-up/inspiration board, substitution policy, setup/breakdown
+     included, what happens to flowers after
+     - Entertainment: Exactly what equipment they bring, MC duties, overtime rates,
+     playlist approval process
+     - Attire: Timeline for alterations, preservation options, rush fees, return policy
+     - Videography: Drone footage availability, highlight reel length, raw footage
+     delivery, music licensing
+
+     localStorage key: wedagent_vendors
+
+     Changes to client/src/pages/planning.tsx:
+     - Remove the "Vendor Status" section (lines ~420–467) and replace with a compact
+     link card: "Manage your vendors → Vendors page"
+
+     Changes to client/src/App.tsx:
+     - Import Vendors from @/pages/vendors
+     - Add <Route path="/vendors"><ProtectedRoute component={Vendors} /></Route>
+
+     Changes to client/src/components/layout/Shell.tsx:
+     - Add { href: "/vendors", label: "Vendors", icon: Building2 } to nav links
+     - Add Building2 to lucide-react imports
+
+     ---
+     Files Modified / Created
+
+     ┌──────────────────────────────────────────┬────────┬──────────────────────────────
+     ─────┐
+     │                   File                   │ Action │              Purpose
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/components/layout/Shell.tsx   │ Modify │ Chat panel, new nav links,
+          │
+     │                                          │        │ onboarding tour render
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/components/OnboardingTour.tsx │ Create │ First-time tour modal
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/pages/guests.tsx              │ Create │ Guest list page
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/pages/vendors.tsx             │ Create │ Vendors + tips page
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/pages/home.tsx                │ Modify │ Pricing section + Pricing nav
+          │
+     │                                          │        │ link
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/pages/planning.tsx            │ Modify │ Remove vendor section, add
+     link   │
+     │                                          │        │ to /vendors
+          │
+     ├──────────────────────────────────────────┼────────┼──────────────────────────────
+     ─────┤
+     │ client/src/App.tsx                       │ Modify │ Add /guests and /vendors
+     routes   │
+     └──────────────────────────────────────────┴────────┴──────────────────────────────
+     ─────┘
+
+     ---
+     Verification
+
+     1. Chat panel: Open any inner page on desktop → right panel visible with chat;
+     collapse button hides it; on mobile, floating button opens bottom sheet
+     2. Guest list: Navigate to /guests → add a guest → refresh → guest persists
+     (localStorage); stats update correctly
+     3. Onboarding: Clear wedagent_toured from localStorage → log in → tour modal
+     appears; complete or skip → doesn't show again
+     4. Pricing: View home page → pricing section visible below Features; two cards with
+      correct feature lists
+     5. Vendors page: Navigate to /vendors → switch between My Vendors and Vendor Tips
+     tabs; edit a vendor; tips accordion expands per category
+     6. Planning page: Vendor section replaced with link card pointing to /vendors
+
+● Let me start implementing. I'll work through the files systematically.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now I'll rewrite Shell.tsx with the right-side chat panel, new nav links, and
+  OnboardingTour:
+
+● Write(client/src/components/layout/Shell.tsx)
+  ⎿  Added 136 lines, removed 72 lines
+       1 -import { useState } from "react";                                           
+       1 +import { useState, useRef, useEffect } from "react";                        
+       2  import { Link, useLocation } from "wouter";
+       3  import {
+       4    LayoutDashboard, Calculator, FileText, Sparkles,
+       5 -  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X, LogOut, 
+         -ArrowRight, NotebookPen,                                                    
+       5 +  ClipboardList, ChevronLeft, ChevronRight, MessageSquare, Send, X,         
+       6 +  LogOut, ArrowRight, NotebookPen, Users, Building2,                        
+       7  } from "lucide-react";
+       8  import { Button } from "@/components/ui/button";
+       9  import { Input } from "@/components/ui/input";
+      10  import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/componen
+          ts/ui/drawer";
+      11  import { cn } from "@/lib/utils";
+      12  import { useAuth } from "@/hooks/use-auth";
+      13 +import { OnboardingTour } from "@/components/OnboardingTour";               
+      14  
+      15  // ─── Types ───────────────────────────────────────────────────────────────
+          ─────
+      16  
+     ...
+      24    "AI assistant coming soon — ask anything about your wedding budget and I'l
+          l help you plan smarter.",
+      25    "Great question! Our AI is being trained on thousands of real wedding budg
+          ets. Stay tuned for personalized advice.",
+      26    "I'm a preview of your AI wedding CFO. Full answers coming soon — I'll hel
+          p you negotiate vendor quotes and spot hidden fees.",
+      27 +  "Vendor negotiations can be tricky — soon I'll walk you through how to rea
+         +d contracts and spot hidden fees.",                                         
+      28 +  "Budget overruns happen — once fully trained, I'll suggest smart trade-off
+         +s based on your priorities.",                                               
+      29  ];
+      30  
+      31  // ─── Shell Component ─────────────────────────────────────────────────────
+          ──────
+     ...
+      34    const [location] = useLocation();
+      35    const [collapsed, setCollapsed] = useState(false);
+      36    const { user, logoutMutation, isDemoMode, exitDemoMode } = useAuth();
+      33 -  const [chatOpen, setChatOpen] = useState(false);                          
+      37 +                                                                            
+      38 +  // Desktop right-side chat panel                                          
+      39 +  const [chatPanelOpen, setChatPanelOpen] = useState(true);                 
+      40 +                                                                            
+      41 +  // Mobile bottom drawer                                                   
+      42 +  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);          
+      43 +                                                                            
+      44    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+      45      {
+      46        id: "welcome",
+     ...
+      50    ]);
+      51    const [chatInput, setChatInput] = useState("");
+      52    const [stubIdx, setStubIdx] = useState(0);
+      53 +  const messagesEndRef = useRef<HTMLDivElement>(null);                      
+      54  
+      55 +  useEffect(() => {                                                         
+      56 +    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });         
+      57 +  }, [chatMessages]);                                                       
+      58 +                                                                            
+      59    const links = [
+      60      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      61      { href: "/builder", label: "Budget Builder", icon: Calculator },
+      62      { href: "/quote-normalizer", label: "Quote Analysis", icon: FileText },
+      63      { href: "/planning", label: "Planning", icon: ClipboardList },
+      64 +    { href: "/vendors", label: "Vendors", icon: Building2 },                
+      65 +    { href: "/guests", label: "Guest List", icon: Users },                  
+      66      { href: "/notes", label: "Notes", icon: NotebookPen },
+      67    ];
+      68  
+      52 -  const sendMessage = () => {                                               
+      53 -    const text = chatInput.trim();                                          
+      69 +  const sendMessage = (targetInput?: string) => {                           
+      70 +    const text = (targetInput ?? chatInput).trim();                         
+      71      if (!text) return;
+      72      const userMsg: ChatMessage = { id: Date.now().toString(), role: "user",
+          text };
+      73      const aiMsg: ChatMessage = {
+     ...
+       80      setChatInput("");
+       81    };
+       82  
+       83 +  // ── Chat UI (reused in panel & drawer) ────────────────────────────────
+          +──────                                                                     
+       84 +  const ChatMessages = () => (                                             
+       85 +    <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">         
+       86 +      {chatMessages.map((msg) => (                                         
+       87 +        <div                                                               
+       88 +          key={msg.id}                                                     
+       89 +          className={cn("flex", msg.role === "user" ? "justify-end" : "just
+          +ify-start")}                                                               
+       90 +        >                                                                  
+       91 +          <div                                                             
+       92 +            className={cn(                                                 
+       93 +              "max-w-[85%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed"
+          +,                                                                          
+       94 +              msg.role === "user"                                          
+       95 +                ? "bg-primary text-primary-foreground rounded-br-sm"       
+       96 +                : "bg-muted text-foreground rounded-bl-sm border border-bor
+          +der"                                                                       
+       97 +            )}                                                             
+       98 +          >                                                                
+       99 +            {msg.text}                                                     
+      100 +          </div>                                                           
+      101 +        </div>                                                             
+      102 +      ))}                                                                  
+      103 +      <div ref={messagesEndRef} />                                         
+      104 +    </div>                                                                 
+      105 +  );                                                                       
+      106 +                                                                           
+      107 +  const ChatInput = ({ onSend }: { onSend: () => void }) => (              
+      108 +    <div className="p-3 border-t border-border">                           
+      109 +      <div className="flex gap-2">                                         
+      110 +        <Input                                                             
+      111 +          placeholder="Ask about your wedding..."                          
+      112 +          value={chatInput}                                                
+      113 +          onChange={(e) => setChatInput(e.target.value)}                   
+      114 +          onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}          
+      115 +          className="flex-1 text-sm h-9"                                   
+      116 +        />                                                                 
+      117 +        <Button size="icon" onClick={onSend} className="rounded-full shrink
+          +-0 h-9 w-9">                                                               
+      118 +          <Send className="w-3.5 h-3.5" />                                 
+      119 +        </Button>                                                          
+      120 +      </div>                                                               
+      121 +      <p className="text-[10px] text-muted-foreground text-center mt-2 uppe
+          +rcase tracking-wider">                                                     
+      122 +        AI responses are stubs — full AI coming soon                       
+      123 +      </p>                                                                 
+      124 +    </div>                                                                 
+      125 +  );                                                                       
+      126 +                                                                           
+      127    return (
+      128      <div className="min-h-screen bg-background flex text-foreground">
+       68 -      {/* ── Sidebar ── */}                                                
+      129 +      {/* ── Onboarding Tour ── */}                                        
+      130 +      <OnboardingTour />                                                   
+      131 +                                                                           
+      132 +      {/* ── Left Sidebar ── */}                                           
+      133        <aside
+      134          className={cn(
+      135            "border-r border-border bg-card hidden md:flex flex-col transitio
+           n-all duration-200",
+       72 -          collapsed ? "w-16" : "w-64"                                      
+      136 +          collapsed ? "w-16" : "w-56"                                      
+      137          )}
+      138        >
+      139          {/* Logo */}
+       76 -        <div className={cn("p-4 flex items-center", collapsed ? "justify-ce
+          -nter" : "px-6")}>                                                          
+      140 +        <div className={cn("p-4 flex items-center", collapsed ? "justify-ce
+          +nter" : "px-5")}>                                                          
+      141            <Link href="/">
+      142              <a className="flex items-center gap-2 text-primary">
+       79 -              <Sparkles className="w-6 h-6 text-accent shrink-0" />        
+      143 +              <Sparkles className="w-5 h-5 text-accent shrink-0" />        
+      144                {!collapsed && (
+       81 -                <span className="font-serif text-2xl font-bold tracking-tig
+          -ht">WedAgent</span>                                                        
+      145 +                <span className="font-serif text-xl font-bold tracking-tigh
+          +t">WedAgent</span>                                                         
+      146                )}
+      147              </a>
+      148            </Link>
+      149          </div>
+      150  
+      151          {/* Nav links */}
+       88 -        <nav className={cn("flex-1 space-y-2", collapsed ? "px-2" : "px-4")
+          -}>                                                                         
+      152 +        <nav className={cn("flex-1 space-y-1", collapsed ? "px-2" : "px-3")
+          +}>                                                                         
+      153            {links.map((link) => {
+      154              const active = location === link.href;
+      155              const Icon = link.icon;
+     ...
+      196              </>
+      197            ) : (
+      198              <>
+      135 -              {/* Username */}                                             
+      199                {!collapsed && user && (
+      200                  <p className="text-xs text-muted-foreground truncate px-1">
+      201                    Signed in as <span className="font-medium text-foreground
+           ">{user.username}</span>
+      202                  </p>
+      203                )}
+      141 -                                                                           
+      142 -              {/* Logout */}                                               
+      204                <button
+      205                  onClick={() => logoutMutation.mutate()}
+      206                  disabled={logoutMutation.isPending}
+     ...
+      213              </>
+      214            )}
+      215  
+      155 -          {/* Collapse toggle */}                                          
+      216            <button
+      217              onClick={() => setCollapsed((v) => !v)}
+      218              className="flex items-center gap-2 text-xs text-muted-foregroun
+           d hover:text-foreground transition-colors"
+     ...
+      232        </aside>
+      233  
+      234        {/* ── Main Content ── */}
+      175 -      <main className="flex-1 overflow-y-auto relative">                   
+      235 +      <main className="flex-1 overflow-y-auto relative min-w-0">           
+      236          {/* Demo mode top bar (desktop) */}
+      237          {isDemoMode && (
+      238            <div className="hidden md:flex sticky top-0 z-40 bg-background/95
+            backdrop-blur border-b border-border items-center justify-between px-6 py-
+           2">
+     ...
+      257                WedAgent
+      258              </a>
+      259            </Link>
+      200 -          <div className="flex items-center gap-4 text-sm font-medium text-
+          -muted-foreground">                                                         
+      260 +          <div className="flex items-center gap-3 text-sm font-medium text-
+          +muted-foreground">                                                         
+      261              {isDemoMode ? (
+      262                <Link href="/auth">
+      263                  <a onClick={exitDemoMode} className="flex items-center gap-
+           1 font-medium text-primary">
+     ...
+      266                </Link>
+      267              ) : (
+      268                <>
+      209 -                <Link href="/dashboard"><a className={location === "/dashbo
+          -ard" ? "text-primary" : ""}>Menu</a></Link>                                
+      269                  <button
+      270 +                  onClick={() => setMobileDrawerOpen(true)}                
+      271 +                  className="flex items-center gap-1.5 hover:text-foregroun
+          +d transition-colors"                                                       
+      272 +                  title="Open AI chat"                                     
+      273 +                >                                                          
+      274 +                  <MessageSquare className="w-4 h-4" />                    
+      275 +                </button>                                                  
+      276 +                <button                                                    
+      277                    onClick={() => logoutMutation.mutate()}
+      278                    disabled={logoutMutation.isPending}
+      279                    className="flex items-center gap-1 hover:text-destructive
+            transition-colors"
+     ...
+      289          {children}
+      290        </main>
+      291  
+      226 -      {/* ── Floating Chat Button ── */}                                   
+      227 -      <button                                                              
+      228 -        onClick={() => setChatOpen(true)}                                  
+      229 -        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-pr
+          -imary text-primary-foreground shadow-2xl flex items-center justify-center h
+          -over:scale-105 hover:shadow-xl transition-all duration-200"                
+      230 -        title="Open AI assistant"                                          
+      292 +      {/* ── Right Chat Panel (desktop) ── */}                             
+      293 +      <aside                                                               
+      294 +        className={cn(                                                     
+      295 +          "hidden md:flex flex-col border-l border-border bg-card transitio
+          +n-all duration-200 shrink-0",                                              
+      296 +          chatPanelOpen ? "w-72" : "w-10"                                  
+      297 +        )}                                                                 
+      298        >
+      232 -        <MessageSquare className="w-6 h-6" />                              
+      233 -      </button>                                                            
+      299 +        {chatPanelOpen ? (                                                 
+      300 +          <>                                                               
+      301 +            {/* Panel header */}                                           
+      302 +            <div className="flex items-center justify-between px-4 py-3 bor
+          +der-b border-border shrink-0">                                             
+      303 +              <div className="flex items-center gap-2">                    
+      304 +                <div className="w-7 h-7 rounded-full bg-primary flex items-
+          +center justify-center shrink-0">                                           
+      305 +                  <Sparkles className="w-3.5 h-3.5 text-primary-foreground"
+          + />                                                                        
+      306 +                </div>                                                     
+      307 +                <div>                                                      
+      308 +                  <p className="text-sm font-serif font-semibold text-prima
+          +ry leading-tight">WedAgent AI</p>                                          
+      309 +                  <p className="text-[10px] text-muted-foreground">Your pla
+          +nning assistant</p>                                                        
+      310 +                </div>                                                     
+      311 +              </div>                                                       
+      312 +              <button                                                      
+      313 +                onClick={() => setChatPanelOpen(false)}                    
+      314 +                className="text-muted-foreground hover:text-foreground tran
+          +sition-colors"                                                             
+      315 +                title="Collapse chat"                                      
+      316 +              >                                                            
+      317 +                <ChevronRight className="w-4 h-4" />                       
+      318 +              </button>                                                    
+      319 +            </div>                                                         
+      320  
+      235 -      {/* ── Chat Drawer ── */}                                            
+      236 -      <Drawer open={chatOpen} onOpenChange={setChatOpen} direction="bottom"
+          ->                                                                          
+      321 +            {/* Messages */}                                               
+      322 +            <ChatMessages />                                               
+      323 +                                                                           
+      324 +            {/* Input */}                                                  
+      325 +            <ChatInput onSend={() => sendMessage()} />                     
+      326 +          </>                                                              
+      327 +        ) : (                                                              
+      328 +          /* Collapsed tab */                                              
+      329 +          <button                                                          
+      330 +            onClick={() => setChatPanelOpen(true)}                         
+      331 +            className="flex-1 flex flex-col items-center justify-center gap
+          +-2 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition
+          +-colors"                                                                   
+      332 +            title="Open AI chat"                                           
+      333 +          >                                                                
+      334 +            <MessageSquare className="w-4 h-4" />                          
+      335 +            <ChevronLeft className="w-3 h-3" />                            
+      336 +          </button>                                                        
+      337 +        )}                                                                 
+      338 +      </aside>                                                             
+      339 +                                                                           
+      340 +      {/* ── Mobile Chat Drawer ── */}                                     
+      341 +      <Drawer open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen} di
+          +rection="bottom">                                                          
+      342          <DrawerContent className="max-h-[80vh] flex flex-col">
+      238 -          <DrawerHeader className="border-b border-border pb-4 flex items-c
+          -enter justify-between">                                                    
+      343 +          <DrawerHeader className="border-b border-border pb-3 flex items-c
+          +enter justify-between shrink-0">                                           
+      344              <div className="flex items-center gap-3">
+      345                <div className="w-8 h-8 rounded-full bg-primary flex items-ce
+           nter justify-center">
+      346                  <Sparkles className="w-4 h-4 text-primary-foreground" />
+     ...
+      350                  <p className="text-xs text-muted-foreground">Your wedding p
+           lanning assistant</p>
+      351                </div>
+      352              </div>
+      248 -            <Button variant="ghost" size="icon" onClick={() => setChatOpen(
+          -false)} className="rounded-full">                                          
+      353 +            <Button variant="ghost" size="icon" onClick={() => setMobileDra
+          +werOpen(false)} className="rounded-full">                                  
+      354                <X className="w-4 h-4" />
+      355              </Button>
+      356            </DrawerHeader>
+      252 -                                                                           
+      253 -          {/* Messages */}                                                 
+      254 -          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">   
+      255 -            {chatMessages.map((msg) => (                                   
+      256 -              <div                                                         
+      257 -                key={msg.id}                                               
+      258 -                className={cn(                                             
+      259 -                  "flex",                                                  
+      260 -                  msg.role === "user" ? "justify-end" : "justify-start"    
+      261 -                )}                                                         
+      262 -              >                                                            
+      263 -                <div                                                       
+      264 -                  className={cn(                                           
+      265 -                    "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-rela
+          -xed",                                                                      
+      266 -                    msg.role === "user"                                    
+      267 -                      ? "bg-primary text-primary-foreground rounded-br-sm" 
+      268 -                      : "bg-muted text-foreground rounded-bl-sm border bord
+          -er-border"                                                                 
+      269 -                  )}                                                       
+      270 -                >                                                          
+      271 -                  {msg.text}                                               
+      272 -                </div>                                                     
+      273 -              </div>                                                       
+      274 -            ))}                                                            
+      275 -          </div>                                                           
+      276 -                                                                           
+      277 -          {/* Input */}                                                    
+      278 -          <div className="p-4 border-t border-border">                     
+      279 -            <div className="flex gap-2">                                   
+      280 -              <Input                                                       
+      281 -                placeholder="Ask anything about your wedding budget..."    
+      282 -                value={chatInput}                                          
+      283 -                onChange={(e) => setChatInput(e.target.value)}             
+      284 -                onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }
+          -}                                                                          
+      285 -                className="flex-1"                                         
+      286 -              />                                                           
+      287 -              <Button size="icon" onClick={sendMessage} className="rounded-
+          -full shrink-0">                                                            
+      288 -                <Send className="w-4 h-4" />                               
+      289 -              </Button>                                                    
+      290 -            </div>                                                         
+      291 -            <p className="text-[10px] text-muted-foreground text-center mt-
+          -2 uppercase tracking-wider">                                               
+      292 -              AI responses are stubs — full AI coming soon                 
+      293 -            </p>                                                           
+      294 -          </div>                                                           
+      357 +          <ChatMessages />                                                 
+      358 +          <ChatInput onSend={() => { sendMessage(); }} />                  
+      359          </DrawerContent>
+      360        </Drawer>
+      361      </div>
+
+● Write(client/src/components/OnboardingTour.tsx)
+  ⎿  Wrote 207 lines to client/src/components/OnboardingTour.tsx
+      1 import { useState } from "react";
+      2 import { useLocation } from "wouter";
+      3 import {
+      4   Sparkles, LayoutDashboard, Calculator, FileText,
+      5   ClipboardList, Building2, NotebookPen, ArrowRight, X,
+      6 } from "lucide-react";
+      7 import { Button } from "@/components/ui/button";
+      8 import { cn } from "@/lib/utils";
+      9 import { useAuth } from "@/hooks/use-auth";
+     … +197 lines (ctrl+o to expand)
+
+● Write(client/src/pages/guests.tsx)
+  ⎿  Wrote 434 lines to client/src/pages/guests.tsx
+       1 import { useState, useEffect } from "react";
+       2 import { Shell } from "@/components/layout/Shell";
+       3 import { Button } from "@/components/ui/button";
+       4 import { Input } from "@/components/ui/input";
+       5 import { Badge } from "@/components/ui/badge";
+       6 import { Label } from "@/components/ui/label";
+       7 import {
+       8   Dialog, DialogContent, DialogHeader, DialogTitle,
+       9 } from "@/components/ui/dialog";
+      10 import { cn } from "@/lib/utils";
+     … +424 lines (ctrl+o to expand)
+
+● Now the vendors page — the largest new file with both management and tips tabs:
+
+● Write(client/src/pages/vendors.tsx)
+  ⎿  Wrote 723 lines to client/src/pages/vendors.tsx
+       1 import { useState, useEffect } from "react";
+       2 import { Shell } from "@/components/layout/Shell";
+       3 import { Button } from "@/components/ui/button";
+       4 import { Input } from "@/components/ui/input";
+       5 import { Badge } from "@/components/ui/badge";
+       6 import { Label } from "@/components/ui/label";
+       7 import {
+       8   Dialog, DialogContent, DialogHeader, DialogTitle,
+       9 } from "@/components/ui/dialog";
+      10 import { cn } from "@/lib/utils";
+     … +713 lines (ctrl+o to expand)
+
+● Now add the pricing section to home.tsx:
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 2 lines, removed 1 line
+      1  import { Link, useLocation } from "wouter";
+      2  import { Button } from "@/components/ui/button";
+      3  import heroBg from "@/assets/images/hero-bg.png";
+      4 -import { Sparkles, Calculator, FileSearch, TrendingDown, ArrowRight } from "l
+        -ucide-react";                                                                
+      4 +import { Sparkles, Calculator, FileSearch, TrendingDown, ArrowRight, Check } 
+        +from "lucide-react";                                                         
+      5  import { useAuth } from "@/hooks/use-auth";
+      6 +import { cn } from "@/lib/utils";                                            
+      7  
+      8  export default function Home() {
+      9    const { enterDemoMode } = useAuth();
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 1 line
+      24          <nav className="hidden md:flex gap-8 text-sm font-medium text-muted-
+          foreground">
+      25            <a href="#how-it-works" className="hover:text-foreground transitio
+          n-colors">How it Works</a>
+      26            <a href="#features" className="hover:text-foreground transition-co
+          lors">Features</a>
+      27 +          <a href="#pricing" className="hover:text-foreground transition-col
+         +ors">Pricing</a>                                                            
+      28          </nav>
+      29          <Link href="/builder">
+      30            <Button className="rounded-full px-6 bg-primary text-primary-foreg
+          round">Get Started</Button>
+
+● Now add the pricing section before the closing </div> of the page:
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(client/src/pages/home.tsx)
+  ⎿  Added 92 lines
+      157            </div>
+      158          </div>
+      159        </section>
+      160 +                                                                           
+      161 +      {/* ── Pricing ── */}                                                
+      162 +      <section id="pricing" className="relative z-10 bg-background py-24 bo
+          +rder-t border-border">                                                     
+      163 +        <div className="max-w-5xl mx-auto px-6">                           
+      164 +          <div className="text-center mb-16">                              
+      165 +            <h2 className="text-3xl md:text-4xl font-serif font-bold text-p
+          +rimary mb-4">Simple, Transparent Pricing</h2>                              
+      166 +            <p className="text-muted-foreground max-w-xl mx-auto">         
+      167 +              Start free for 30 days — no credit card required. Upgrade whe
+          +n you're ready for everything.                                             
+      168 +            </p>                                                           
+      169 +          </div>                                                           
+      170 +                                                                           
+      171 +          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">    
+      172 +            {/* Free Trial */}                                             
+      173 +            <div className="bg-card border border-border rounded-2xl p-8 fl
+          +ex flex-col">                                                              
+      174 +              <div className="inline-flex items-center gap-1.5 px-3 py-1 ro
+          +unded-full bg-muted text-muted-foreground text-xs font-medium w-fit mb-6"> 
+      175 +                Free Trial                                                 
+      176 +              </div>                                                       
+      177 +              <div className="mb-2">                                       
+      178 +                <span className="text-4xl font-bold text-primary">30 days</
+          +span>                                                                      
+      179 +              </div>                                                       
+      180 +              <p className="text-sm text-muted-foreground mb-8">No credit c
+          +ard required</p>                                                           
+      181 +                                                                           
+      182 +              <ul className="space-y-3 flex-1 mb-8">                       
+      183 +                {[                                                         
+      184 +                  "Budget Builder",                                        
+      185 +                  "Live Budget Dashboard",                                 
+      186 +                  "Quote Analysis (3 quotes)",                             
+      187 +                  "Planning & Milestones",                                 
+      188 +                  "Guest List (up to 25)",                                 
+      189 +                ].map((f) => (                                             
+      190 +                  <li key={f} className="flex items-center gap-2.5 text-sm"
+          +>                                                                          
+      191 +                    <Check className="w-4 h-4 text-green-600 shrink-0" />  
+      192 +                    {f}                                                    
+      193 +                  </li>                                                    
+      194 +                ))}                                                        
+      195 +              </ul>                                                        
+      196 +                                                                           
+      197 +              <Link href="/auth">                                          
+      198 +                <Button                                                    
+      199 +                  variant="outline"                                        
+      200 +                  className="w-full rounded-full"                          
+      201 +                  onClick={() => { enterDemoMode(); setLocation("/dashboard
+          +"); }}                                                                     
+      202 +                >                                                          
+      203 +                  Try the Demo                                             
+      204 +                </Button>                                                  
+      205 +              </Link>                                                      
+      206 +            </div>                                                         
+      207 +                                                                           
+      208 +            {/* Pro */}                                                    
+      209 +            <div className="bg-primary text-primary-foreground rounded-2xl 
+          +p-8 flex flex-col relative overflow-hidden shadow-xl">                     
+      210 +              <div className="absolute top-0 right-0 bg-accent text-accent-
+          +foreground text-xs font-bold px-4 py-1.5 rounded-bl-xl">                   
+      211 +                Most Popular                                               
+      212 +              </div>                                                       
+      213 +              <div className="inline-flex items-center gap-1.5 px-3 py-1 ro
+          +unded-full bg-white/20 text-white text-xs font-medium w-fit mb-6">         
+      214 +                Pro                                                        
+      215 +              </div>                                                       
+      216 +              <div className="mb-2 flex items-end gap-2">                  
+      217 +                <span className="text-4xl font-bold">$X</span>             
+      218 +                <span className="text-primary-foreground/70 mb-1">/ month</
+          +span>                                                                      
+      219 +              </div>                                                       
+      220 +              <p className="text-sm text-primary-foreground/70 mb-8">After 
+          +your free trial</p>                                                        
+      221 +                                                                           
+      222 +              <ul className="space-y-3 flex-1 mb-8">                       
+      223 +                {[                                                         
+      224 +                  "Everything in Free Trial",                              
+      225 +                  "Unlimited quote analyses",                              
+      226 +                  "Full guest list (unlimited)",                           
+      227 +                  "Vendor management & tips",                              
+      228 +                  "Notes + Google Drive sync",                             
+      229 +                  "AI chat assistant",                                     
+      230 +                  "Priority support",                                      
+      231 +                ].map((f, i) => (                                          
+      232 +                  <li key={f} className={cn("flex items-center gap-2.5 text
+          +-sm", i === 0 && "font-medium")}>                                          
+      233 +                    <Check className="w-4 h-4 text-white shrink-0" />      
+      234 +                    {f}                                                    
+      235 +                  </li>                                                    
+      236 +                ))}                                                        
+      237 +              </ul>                                                        
+      238 +                                                                           
+      239 +              <Link href="/auth">                                          
+      240 +                <Button className="w-full rounded-full bg-white text-primar
+          +y hover:bg-white/90">                                                      
+      241 +                  Start Free Trial <ArrowRight className="w-4 h-4 ml-1" /> 
+      242 +                </Button>                                                  
+      243 +              </Link>                                                      
+      244 +            </div>                                                         
+      245 +          </div>                                                           
+      246 +                                                                           
+      247 +          <p className="text-center text-xs text-muted-foreground mt-8">   
+      248 +            Cancel anytime. Price in USD.                                  
+      249 +          </p>                                                             
+      250 +        </div>                                                             
+      251 +      </section>                                                           
+      252      </div>
+      253    );
+      254  }
+
+● Now update planning.tsx (remove vendor section, add link) and App.tsx (add routes):
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Added 2 lines, removed 1 line
+      1  import { useState } from "react";
+      2 +import { Link } from "wouter";                                               
+      3  import { Shell } from "@/components/layout/Shell";
+      4  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/car
+         d";
+      5  import { Button } from "@/components/ui/button";
+     ...
+       9  import { Checkbox } from "@/components/ui/checkbox";
+      10  import {
+      11    CheckCircle2, Circle, Plus, Trash2, CalendarDays, ClipboardList,
+      11 -  Building2, Users, Clock,                                                  
+      12 +  Building2, Users, Clock, ArrowRight,                                      
+      13  } from "lucide-react";
+      14  import { cn } from "@/lib/utils";
+      15  
+
+● Now replace the vendor section with a link card:
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Added 13 lines, removed 43 lines
+      417            {/* ── Right Column ── */}
+      418            <div className="space-y-10">
+      419  
+      420 -            {/* ── Section 3: Vendor Booking Status ── */}                 
+      420 +            {/* ── Section 3: Vendor Management Link ── */}                
+      421              <section className="space-y-5">
+      422                <h2 className="text-xl font-serif font-bold text-primary flex
+            items-center gap-2">
+      423 -                <Building2 className="w-5 h-5 text-accent" /> Vendor Status
+      423 +                <Building2 className="w-5 h-5 text-accent" /> Vendors      
+      424                </h2>
+      425 -              <div className="space-y-3">                                  
+      426 -                {vendors.map((vendor) => (                                 
+      427 -                  <div key={vendor.id} className="bg-card border border-bor
+          -der rounded-2xl p-4 space-y-3">                                            
+      428 -                    <div className="flex items-center justify-between">    
+      429 -                      <span className="text-xs font-bold uppercase tracking
+          --wider text-muted-foreground">{vendor.category}</span>                     
+      430 -                      <select                                              
+      431 -                        value={vendor.status}                              
+      432 -                        onChange={(e) => updateVendor(vendor.id, { status: 
+          -e.target.value as VendorBooking["status"] })}                              
+      433 -                        className={cn(                                     
+      434 -                          "h-6 rounded-full border-0 px-2 text-[11px] font-
+          -bold",                                                                     
+      435 -                          BOOKING_STATUS_COLORS[vendor.status]             
+      436 -                        )}                                                 
+      437 -                      >                                                    
+      438 -                        {Object.entries(BOOKING_STATUS_LABELS).map(([val, l
+          -abel]) => (                                                                
+      439 -                          <option key={val} value={val}>{label}</option>   
+      440 -                        ))}                                                
+      441 -                      </select>                                            
+      425 +              <Link href="/vendors">                                       
+      426 +                <a className="block bg-card border border-border rounded-2x
+          +l p-5 hover:border-primary/40 hover:bg-primary/5 transition-all group">    
+      427 +                  <div className="flex items-center justify-between">      
+      428 +                    <div>                                                  
+      429 +                      <p className="font-semibold text-foreground">Vendor M
+          +anagement</p>                                                              
+      430 +                      <p className="text-sm text-muted-foreground mt-1">   
+      431 +                        Track status, contracts, payments, and get negotiat
+          +ion tips for every vendor.                                                 
+      432 +                      </p>                                                 
+      433                      </div>
+      443 -                    <Input                                                 
+      444 -                      className="h-8 text-sm"                              
+      445 -                      placeholder="Vendor name"                            
+      446 -                      value={vendor.vendorName}                            
+      447 -                      onChange={(e) => updateVendor(vendor.id, { vendorName
+          -: e.target.value })}                                                       
+      448 -                    />                                                     
+      449 -                    <div className="flex items-center gap-4 text-xs text-mu
+          -ted-foreground">                                                           
+      450 -                      <label className="flex items-center gap-1.5 cursor-po
+          -inter">                                                                    
+      451 -                        <Checkbox                                          
+      452 -                          checked={vendor.contractSigned}                  
+      453 -                          onCheckedChange={(v) => updateVendor(vendor.id, {
+          - contractSigned: !!v })}                                                   
+      454 -                        />                                                 
+      455 -                        Contract signed                                    
+      456 -                      </label>                                             
+      457 -                      <label className="flex items-center gap-1.5 cursor-po
+          -inter">                                                                    
+      458 -                        <Checkbox                                          
+      459 -                          checked={vendor.depositPaid}                     
+      460 -                          onCheckedChange={(v) => updateVendor(vendor.id, {
+          - depositPaid: !!v })}                                                      
+      461 -                        />                                                 
+      462 -                        Deposit paid                                       
+      463 -                      </label>                                             
+      464 -                    </div>                                                 
+      434 +                    <ArrowRight className="w-5 h-5 text-muted-foreground gr
+          +oup-hover:text-primary transition-colors shrink-0 ml-4" />                 
+      435                    </div>
+      466 -                ))}                                                        
+      467 -              </div>                                                       
+      436 +                </a>                                                       
+      437 +              </Link>                                                      
+      438              </section>
+      439  
+      440              {/* ── Section 4: Payment Timeline ── */}
+
+● Now update App.tsx with the new routes:
+
+● Update(client/src/App.tsx)
+  ⎿  Added 2 lines
+      14  import QuoteNormalizer from "@/pages/quote-normalizer";
+      15  import Planning from "@/pages/planning";
+      16  import Notes from "@/pages/notes";
+      17 +import Guests from "@/pages/guests";                                        
+      18 +import Vendors from "@/pages/vendors";                                      
+      19  import AuthPage from "@/pages/auth-page";
+      20  
+      21  function ProtectedRoute({ component: Component }: { component: React.Compone
+          ntType }) {
+
+● Update(client/src/App.tsx)
+  ⎿  Added 6 lines
+      61        <Route path="/notes">
+      62          <ProtectedRoute component={Notes} />
+      63        </Route>
+      64 +      <Route path="/guests">                                                
+      65 +        <ProtectedRoute component={Guests} />                               
+      66 +      </Route>                                                              
+      67 +      <Route path="/vendors">                                               
+      68 +        <ProtectedRoute component={Vendors} />                              
+      69 +      </Route>                                                              
+      70        <Route component={NotFound} />
+      71      </Switch>
+      72    );
+
+● Now let me check if planning.tsx still references the old vendor-related state/types that
+  are no longer needed:
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Need to clean up the orphaned vendor state from planning.tsx. Let me read those sections:
+
+● Read 1 file (ctrl+o to expand)
+
+● Now I'll remove all the orphaned vendor-related code from planning.tsx:
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Removed 9 lines
+      31    status: "not_started" | "in_progress" | "done";
+      32  }
+      33  
+      34 -interface VendorBooking {                                                   
+      35 -  id: string;                                                               
+      36 -  category: string;                                                         
+      37 -  vendorName: string;                                                       
+      38 -  status: "searching" | "contacted" | "quoted" | "booked";                  
+      39 -  contractSigned: boolean;                                                  
+      40 -  depositPaid: boolean;                                                     
+      41 -}                                                                           
+      42 -                                                                            
+      34  interface Payment {
+      35    id: string;
+      36    date: string;
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Removed 5 lines
+      74    { id: "m20", label: "Deliver vendor final payments", timeframe: "Week of",
+           done: false },
+      75  ];
+      76  
+      77 -const VENDOR_CATEGORIES_LIST = [                                            
+      78 -  "Venue", "Catering", "Photography", "Videography",                        
+      79 -  "Florals & Decor", "Attire", "Hair & Makeup", "Entertainment",            
+      80 -];                                                                          
+      81 -                                                                            
+      77  const TASK_CATEGORIES = [
+      78    "General", "Venue", "Catering", "Photography", "Videography",
+      79    "Florals & Decor", "Attire", "Entertainment", "Guests", "Logistics",
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Removed 23 lines
+       79    "Florals & Decor", "Attire", "Entertainment", "Guests", "Logistics",
+       80  ];
+       81  
+       82 -const BOOKING_STATUS_LABELS: Record<VendorBooking["status"], string> = {   
+       83 -  searching: "Searching",                                                  
+       84 -  contacted: "Contacted",                                                  
+       85 -  quoted: "Quoted",                                                        
+       86 -  booked: "Booked",                                                        
+       87 -};                                                                         
+       88 -                                                                           
+       89 -const BOOKING_STATUS_COLORS: Record<VendorBooking["status"], string> = {   
+       90 -  searching: "bg-muted text-muted-foreground",                             
+       91 -  contacted: "bg-blue-100 text-blue-700",                                  
+       92 -  quoted: "bg-amber-100 text-amber-700",                                   
+       93 -  booked: "bg-green-100 text-green-700",                                   
+       94 -};                                                                         
+       95 -                                                                           
+       96 -const INIT_VENDORS: VendorBooking[] = VENDOR_CATEGORIES_LIST.map((cat, i) =
+          -> ({                                                                       
+       97 -  id: `v${i}`,                                                             
+       98 -  category: cat,                                                           
+       99 -  vendorName: cat === "Photography" ? "Jane Smith Photography" : cat === "C
+          -atering" ? "Grand Table Events" : "",                                      
+      100 -  status: cat === "Photography" ? "booked" : cat === "Catering" ? "quoted" 
+          -: "searching",                                                             
+      101 -  contractSigned: cat === "Photography",                                   
+      102 -  depositPaid: cat === "Photography",                                      
+      103 -}));                                                                       
+      104 -                                                                           
+       82  const INIT_PAYMENTS: Payment[] = [
+       83    { id: "p1", date: "Mar 15", label: "DJ Final Balance", amount: "$3,000",
+           paid: false },
+       84    { id: "p2", date: "Apr 02", label: "Catering 50% Milestone", amount: "$6,
+           250", paid: false },
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Removed 1 line
+       96  export default function Planning() {
+       97    const [milestones, setMilestones] = useState<Milestone[]>(INIT_MILESTONES
+           );
+       98    const [tasks, setTasks] = useState<Task[]>([]);
+       99 -  const [vendors, setVendors] = useState<VendorBooking[]>(INIT_VENDORS);   
+       99    const [payments, setPayments] = useState<Payment[]>(INIT_PAYMENTS);
+      100  
+      101    // New task form
+
+● Update(client/src/pages/planning.tsx)
+  ⎿  Removed 4 lines
+      139      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)
+           ));
+      140    };
+      141  
+      142 -  const updateVendor = (id: string, updates: Partial<VendorBooking>) => {  
+      143 -    setVendors((prev) => prev.map((v) => (v.id === id ? { ...v, ...updates 
+          -} : v)));                                                                  
+      144 -  };                                                                       
+      145 -                                                                           
+      142    const togglePayment = (id: string) => {
+      143      setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, paid: !p.p
+           aid } : p)));
+      144    };
+
+● Now verify planning.tsx has no remaining vendor references that would cause TypeScript
+  errors:
+
+● Searched for 2 patterns (ctrl+o to expand)
+
+● Clean. Also check that Building2 import in planning.tsx is still valid (used for the
+  section icon):
+
+● Searched for 2 patterns (ctrl+o to expand)
+
+● Good. Let me verify the home.tsx pricing section uses enterDemoMode which is already
+  available in the component:
+
+● Searched for 2 patterns (ctrl+o to expand)
+
+● Good — enterDemoMode and setLocation are both present. Let me also quickly verify the cn
+  import was added (needed for the pricing section):
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● All imports are correct. Let me mark the final task complete and do a quick sanity check on
+   the new files:
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● Everything looks correct. Here's a summary of all the changes made:
+
+  ---
+  Feature 1 — Right-side AI Chat Panel
+
+  Shell.tsx was fully rewritten. On desktop, the chat panel is pinned to the right side of
+  every page, open by default at 272px wide. A chevron button collapses it to a narrow 40px
+  strip with a re-open affordance. On mobile, a MessageSquare icon in the top bar opens the
+  existing bottom drawer. Messages auto-scroll on new entries.
+
+  Feature 2 — Guest List page (/guests)
+
+  Full guest management with name, RSVP status (click any row to cycle pending → attending →
+  declined), +1 flag, dietary restrictions, table assignment, partner side, and notes. Stats
+  bar shows totals at a glance. Search + RSVP filter tabs. Add/Edit dialog. Persisted to
+  localStorage.
+
+  Feature 3 — Onboarding Tour + Pricing
+
+  - OnboardingTour: A 7-step modal with a progress bar and step dots appears on first login
+  (tracked in localStorage wedagent_toured). Each step covers a feature with its icon, title,
+   and description. Users can skip, step forward/back, or jump directly to a page.
+  - Pricing section: Added to the home page below Features. Free Trial card (30 days, 5
+  features, no credit card) and Pro card ($X/month placeholder, 7 features, prominent primary
+   styling). A "Pricing" nav link added to the header.
+
+  Feature 4 — Vendors page (/vendors) + Tips
+
+  Two-tab layout — My Vendors and Vendor Tips. Each vendor card shows status (dropdown),
+  quick contract/deposit checkboxes, and expands to show contact info, payment amounts/due
+  dates, and notes. The Vendor Tips tab has 8 accordion categories (Venue, Catering,
+  Photography, Videography, Florals, Entertainment, Attire, Hair & Makeup) each with
+  questions to ask, red flags, and a sample first-contact message template. The Planning page
+   vendor section was replaced with a link card to /vendors.
+
+✻ Sautéed for 12m 22s
+
+❯ Fix the sidebar- extending all the way to bottom of page and really want to be able to 
+   type in whenever                                                                      
+  Dashboard should be renamed Budget Dashboard – and we should create a separate “Home”  
+  page with a summary of high-level to-do’s, upcoming appointments, overall budget       
+  takeaways.                                                                             
+  Planning page should be renamed “Milestone Checklist” and collapse phases as they get  
+  complete. Should also be able to modify target dates for each task more easily         
+  It should be easier to add tasks under each section                                    
+  Should be able to “minimize” any of the tabs on the left, like budget builder which is 
+   only relevant for the setup                                                           
+  Vendor page should remove “Contract signed” and “deposit paid                          
+                                                                                         
+
+● Read 1 file (ctrl+o to expand)
+
+● The previous plan is done. This is a new set of requests. Let me explore the current
+  codebase state.
+
+● 2 Explore agents finished (ctrl+o to expand)
+   ├─ Explore Shell, planning, and vendors · 5 tool uses · 28.6k tokens
+   │  ⎿  Done
+   └─ Explore dashboard and App routing · 4 tool uses · 11.3k tokens
+      ⎿  Done
+
+● Good, I have everything I need. Now let me write the plan.  
+                                                                                           
+● Updated plan                                                
+  ⎿  /plan to preview                                                                        
+   
+─────────────────────────────────────────────────────────────────────────────────────────────
+ Ready to code?                                                                            
+                                                                                             
+ Here is Claude's plan:                                                                      
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Implementation Plan: Sidebar, Navigation & Page Improvements                                
+                                                                                          
+ Context
+
+ Several UX improvements across the app shell and existing pages:
+ 1. Sidebar doesn't stretch to bottom; chat input should always be reachable
+ 2. "Dashboard" needs to be renamed "Budget Dashboard" + a new protected "Home" summary page
+  added
+ 3. Planning → "Milestone Checklist": collapsible phases, inline date editing, per-section
+ task add
+ 4. Nav items should be individually hideable (e.g. Budget Builder after setup)
+ 5. Vendor page: remove "Contract signed" and "Deposit paid" checkboxes
+
+ ---
+ 1. Sidebar Height Fix + Chat Always Accessible
+
+ Problem: Outer Shell div uses min-h-screen — when page content is short, the sidebar and
+ chat panel don't fill the full viewport. Chat input can be pushed out of view.
+
+ Fix — client/src/components/layout/Shell.tsx:
+ - Change outer div: min-h-screen → h-screen overflow-hidden
+ - This constrains all three columns (sidebar | main | chat) to exactly the viewport height
+ - Sidebar already has flex flex-col → it will fill height automatically
+ - Main already has overflow-y-auto → page content scrolls within it
+ - Chat panel already has flex flex-col with <ChatMessages /> as flex-1 overflow-y-auto and
+ <ChatInput /> pinned at bottom → input is always visible
+
+ No other structural changes needed for this fix.
+
+ ---
+ 2. "Budget Dashboard" Rename + New Home Page
+
+ 2a. Rename in navigation
+
+ client/src/components/layout/Shell.tsx:
+ - Add { href: "/home", label: "Home", icon: Home } as the first nav link (import Home from
+ lucide-react)
+ - Change { href: "/dashboard", label: "Dashboard", ... } → label: "Budget Dashboard"
+ - Import Home icon
+
+ 2b. Dashboard page heading
+
+ client/src/pages/dashboard.tsx:
+ - Find the page heading section and ensure it reads "Budget Dashboard" (currently says
+ "You're on track, Alex & Jordan." with no explicit "Dashboard" title — add a <h1> subtitle
+ or update the header area)
+
+ 2c. New Home summary page
+
+ New file: client/src/pages/app-home.tsx
+
+ Route: /home (protected)
+
+ Sections (uses hardcoded demo data matching dashboard/planning values):
+ 1. Couple + Countdown header — "Alex & Jordan · 475 days to go · June 14, 2027"
+ 2. Budget snapshot strip (3 cards): Total Budget $65k | Spent $22.4k (34%) | Remaining
+ $42.6k
+ 3. Upcoming payments (next 3): Mar 15 DJ $3k · Apr 02 Catering $6.25k · May 20 Florist
+ $1.5k — link to Budget Dashboard
+ 4. Milestone progress — "3 of 20 milestones done" progress bar — link to Milestone
+ Checklist
+ 5. Category health — mini status pills for each budget category (over/on-track/under) —
+ link to Budget Dashboard
+ 6. Quick actions grid — cards linking to each section: Budget Dashboard, Milestone
+ Checklist, Vendors, Quote Analysis, Guest List, Notes
+
+ client/src/App.tsx:
+ - Import AppHome from @/pages/app-home
+ - Add <Route path="/home"><ProtectedRoute component={AppHome} /></Route>
+
+ client/src/pages/auth-page.tsx:
+ - Change post-login redirect from /dashboard to /home
+
+ ---
+ 3. Milestone Checklist Improvements
+
+ client/src/pages/planning.tsx:
+
+ 3a. Nav label (already done — heading says "Milestone Checklist"; fix nav label)
+
+ client/src/components/layout/Shell.tsx:
+ - Change { href: "/planning", label: "Planning", ... } → label: "Milestone Checklist"
+
+ 3b. Collapsible phases
+
+ - Add collapsedPhases state: useState<Set<string>>(new Set())
+ - Auto-collapse a phase when ALL milestones in it are done (computed via useEffect watching
+  milestones)
+ - Add a <button> on each phase header to manually toggle collapse (ChevronDown/ChevronUp
+ icon)
+ - When collapsed, show only the phase header with progress count — hide milestone list
+
+ 3c. Inline target date on milestones
+
+ - Add targetDate?: string field to the Milestone interface
+ - Display it next to each milestone label as a small editable date chip
+ - Clicking the date chip shows an <input type="date"> inline; blur/enter saves it
+ - updateMilestoneDate(id, date) handler added
+
+ 3d. Per-phase quick-add milestone
+
+ - At the bottom of each phase section, add a + Add item button
+ - Clicking reveals a single-line input inline within that phase (not the global form)
+ - On Enter or clicking ✓: creates a new milestone with { label: inputValue, timeframe: tf,
+ done: false }
+ - State: one addingToPhase string (which phase is in add mode) + quickAddText input value
+
+ 3e. Task due date inline editing
+
+ - Currently task.dueDate is display-only after creation
+ - Clicking the clock/date area on a task row makes it an <input type="date">
+ - editingTaskDate state: string | null (task id being edited)
+ - updateTaskDate(id, date) handler
+
+ ---
+ 4. Hideable Sidebar Nav Items
+
+ client/src/components/layout/Shell.tsx:
+
+ - Add hiddenLinks state: useState<string[]>(() =>
+ JSON.parse(localStorage.getItem("wedagent_hidden_nav") || "[]"))
+ - Save to localStorage whenever hiddenLinks changes
+ - In the nav render loop: filter out hidden links from the main list
+ - On each nav item, show a subtle × button that appears on hover (absolute positioned,
+ small) — clicking adds the href to hiddenLinks
+ - At the bottom of the sidebar (above the collapse toggle), when hiddenLinks.length > 0,
+ show a small "Show hidden pages" text button
+   - Clicking it shows a mini list of hidden link labels with restore buttons (+ icon)
+ - On collapsed sidebar: hide the × hide buttons and restore section (too cramped); only
+ show when expanded
+
+ ---
+ 5. Vendor Page: Remove Contract/Deposit Checkboxes
+
+ client/src/pages/vendors.tsx:
+
+ Remove all traces of contractSigned and depositPaid:
+
+ - Interface: Remove both boolean fields from Vendor
+ - blankVendor(): Remove contractSigned: false and depositPaid: false lines
+ - Stats: Remove the "Contracts Signed" and "Deposits Paid" stat cards (stats strip goes
+ from 3 cards to 1: "Booked X/Y")
+ - toggleCheck() function: Remove entirely
+ - Vendor card quick checklist: Remove the {(["contractSigned", "depositPaid"] as
+ const).map(...)} block (lines ~399–412)
+ - Edit dialog: Remove the checkboxes section from the dialog form
+
+ ---
+ Files Modified
+
+ ┌────────────────────────────────────────┬──────────────────────────────────────────────┐
+ │                  File                  │                   Changes                    │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │                                        │ h-screen overflow-hidden, add Home nav,      │
+ │ client/src/components/layout/Shell.tsx │ rename Dashboard/Planning nav, hideable nav  │
+ │                                        │ items                                        │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/pages/dashboard.tsx         │ Add/update "Budget Dashboard" title          │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/pages/app-home.tsx          │ New — App Home summary page                  │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/pages/planning.tsx          │ Collapsible phases, inline dates, per-phase  │
+ │                                        │ quick-add                                    │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/pages/vendors.tsx           │ Remove contractSigned/depositPaid            │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/pages/auth-page.tsx         │ Redirect to /home after login                │
+ ├────────────────────────────────────────┼──────────────────────────────────────────────┤
+ │ client/src/App.tsx                     │ Add /home route                              │
+ └────────────────────────────────────────┴──────────────────────────────────────────────┘
+
+ ---
+ Verification
+
+ 1. Sidebar height: Open any page → sidebar and chat panel fill full viewport height; chat
+ input visible without scrolling
+ 2. Home page: Log in → lands on /home; see budget snapshot, upcoming payments, milestone
+ progress, quick links
+ 3. Budget Dashboard: Navigate to /dashboard → heading shows "Budget Dashboard"; sidebar
+ label updated
+ 4. Milestone Checklist: Navigate to /planning → sidebar label shows "Milestone Checklist";
+ complete all milestones in a phase → phase auto-collapses; click phase header to toggle;
+ click date chip on milestone to edit; click + Add item in a phase → inline input appears
+ 5. Hideable nav: Hover over "Budget Builder" in sidebar → × button appears; click it → item
+  hidden; "Show hidden pages" appears at bottom; click restore → item returns; persists
+ after page refresh
+ 6. Vendors: Navigate to /vendors → no "Contract signed" / "Deposit paid" checkboxes
+ anywhere; stats show only "Booked" count

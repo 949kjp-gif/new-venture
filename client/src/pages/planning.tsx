@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CheckCircle2, Circle, Plus, Trash2, CalendarDays, ClipboardList,
-  Building2, Users, Clock,
+  Building2, Users, Clock, ArrowRight, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ interface Milestone {
   label: string;
   timeframe: string;
   done: boolean;
+  targetDate?: string;
 }
 
 interface Task {
@@ -28,15 +30,6 @@ interface Task {
   dueDate: string;
   assignee: "self" | "partner" | "planner";
   status: "not_started" | "in_progress" | "done";
-}
-
-interface VendorBooking {
-  id: string;
-  category: string;
-  vendorName: string;
-  status: "searching" | "contacted" | "quoted" | "booked";
-  contractSigned: boolean;
-  depositPaid: boolean;
 }
 
 interface Payment {
@@ -82,38 +75,10 @@ const INIT_MILESTONES: Milestone[] = [
   { id: "m20", label: "Deliver vendor final payments", timeframe: "Week of", done: false },
 ];
 
-const VENDOR_CATEGORIES_LIST = [
-  "Venue", "Catering", "Photography", "Videography",
-  "Florals & Decor", "Attire", "Hair & Makeup", "Entertainment",
-];
-
 const TASK_CATEGORIES = [
   "General", "Venue", "Catering", "Photography", "Videography",
   "Florals & Decor", "Attire", "Entertainment", "Guests", "Logistics",
 ];
-
-const BOOKING_STATUS_LABELS: Record<VendorBooking["status"], string> = {
-  searching: "Searching",
-  contacted: "Contacted",
-  quoted: "Quoted",
-  booked: "Booked",
-};
-
-const BOOKING_STATUS_COLORS: Record<VendorBooking["status"], string> = {
-  searching: "bg-muted text-muted-foreground",
-  contacted: "bg-blue-100 text-blue-700",
-  quoted: "bg-amber-100 text-amber-700",
-  booked: "bg-green-100 text-green-700",
-};
-
-const INIT_VENDORS: VendorBooking[] = VENDOR_CATEGORIES_LIST.map((cat, i) => ({
-  id: `v${i}`,
-  category: cat,
-  vendorName: cat === "Photography" ? "Jane Smith Photography" : cat === "Catering" ? "Grand Table Events" : "",
-  status: cat === "Photography" ? "booked" : cat === "Catering" ? "quoted" : "searching",
-  contractSigned: cat === "Photography",
-  depositPaid: cat === "Photography",
-}));
 
 const INIT_PAYMENTS: Payment[] = [
   { id: "p1", date: "Mar 15", label: "DJ Final Balance", amount: "$3,000", paid: false },
@@ -132,7 +97,6 @@ const daysUntil = Math.ceil((WEDDING_DATE.getTime() - Date.now()) / (1000 * 60 *
 export default function Planning() {
   const [milestones, setMilestones] = useState<Milestone[]>(INIT_MILESTONES);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [vendors, setVendors] = useState<VendorBooking[]>(INIT_VENDORS);
   const [payments, setPayments] = useState<Payment[]>(INIT_PAYMENTS);
 
   // New task form
@@ -140,6 +104,55 @@ export default function Planning() {
   const [newTaskCategory, setNewTaskCategory] = useState("General");
   const [newTaskDue, setNewTaskDue] = useState("");
   const [newTaskAssignee, setNewTaskAssignee] = useState<Task["assignee"]>("self");
+
+  // Collapsible phases
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
+
+  // Auto-collapse phase when all milestones in it are done
+  useEffect(() => {
+    setCollapsedPhases((prev) => {
+      const next = new Set(prev);
+      TIMEFRAMES.forEach((tf) => {
+        const items = milestones.filter((m) => m.timeframe === tf);
+        if (items.length > 0 && items.every((m) => m.done) && !prev.has(tf)) {
+          next.add(tf);
+        }
+      });
+      if (next.size === prev.size) return prev;
+      return next;
+    });
+  }, [milestones]);
+
+  const togglePhaseCollapse = (tf: string) => {
+    setCollapsedPhases((prev) => {
+      const next = new Set(prev);
+      if (next.has(tf)) next.delete(tf);
+      else next.add(tf);
+      return next;
+    });
+  };
+
+  // Inline milestone date editing
+  const [editingMilestoneDate, setEditingMilestoneDate] = useState<string | null>(null);
+
+  const updateMilestoneDate = (id: string, date: string) => {
+    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, targetDate: date } : m)));
+    setEditingMilestoneDate(null);
+  };
+
+  // Per-phase quick-add
+  const [addingToPhase, setAddingToPhase] = useState<string | null>(null);
+  const [quickAddText, setQuickAddText] = useState("");
+
+  const addMilestoneToPhase = (tf: string) => {
+    if (!quickAddText.trim()) return;
+    setMilestones((prev) => [
+      ...prev,
+      { id: Date.now().toString(), label: quickAddText.trim(), timeframe: tf, done: false },
+    ]);
+    setQuickAddText("");
+    setAddingToPhase(null);
+  };
 
   // New payment form
   const [newPayDate, setNewPayDate] = useState("");
@@ -149,6 +162,10 @@ export default function Planning() {
 
   const toggleMilestone = (id: string) => {
     setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, done: !m.done } : m)));
+  };
+
+  const deleteMilestone = (id: string) => {
+    setMilestones((prev) => prev.filter((m) => m.id !== id));
   };
 
   const addTask = () => {
@@ -174,10 +191,6 @@ export default function Planning() {
 
   const updateTaskStatus = (id: string, status: Task["status"]) => {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
-  };
-
-  const updateVendor = (id: string, updates: Partial<VendorBooking>) => {
-    setVendors((prev) => prev.map((v) => (v.id === id ? { ...v, ...updates } : v)));
   };
 
   const togglePayment = (id: string) => {
@@ -256,44 +269,138 @@ export default function Planning() {
                 const items = milestones.filter((m) => m.timeframe === tf);
                 if (items.length === 0) return null;
                 const doneCount = items.filter((m) => m.done).length;
+                const isCollapsed = collapsedPhases.has(tf);
                 return (
                   <div key={tf} className="space-y-3">
+                    {/* Phase header with collapse toggle */}
                     <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        {TIMEFRAME_LABELS[tf]}
-                      </h3>
+                      <button
+                        onClick={() => togglePhaseCollapse(tf)}
+                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        title={isCollapsed ? "Expand phase" : "Collapse phase"}
+                      >
+                        {isCollapsed
+                          ? <ChevronDown className="w-4 h-4" />
+                          : <ChevronUp className="w-4 h-4" />
+                        }
+                        <h3 className="text-sm font-bold uppercase tracking-wider">
+                          {TIMEFRAME_LABELS[tf]}
+                        </h3>
+                      </button>
                       <div className="flex-1 h-px bg-border" />
                       <span className="text-xs text-muted-foreground">{doneCount}/{items.length}</span>
                     </div>
-                    <div className="space-y-2">
-                      {items.map((milestone) => (
-                        <div
-                          key={milestone.id}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer",
-                            milestone.done
-                              ? "bg-green-50/50 border-green-200/60 opacity-70"
-                              : "bg-card border-border hover:border-primary/30"
-                          )}
-                          onClick={() => toggleMilestone(milestone.id)}
-                        >
-                          <Checkbox
-                            checked={milestone.done}
-                            onCheckedChange={() => toggleMilestone(milestone.id)}
-                            className="shrink-0"
-                          />
-                          <span className={cn(
-                            "text-sm font-medium",
-                            milestone.done && "line-through text-muted-foreground"
-                          )}>
-                            {milestone.label}
-                          </span>
-                          {milestone.done && (
-                            <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto shrink-0" />
-                          )}
+
+                    {!isCollapsed && (
+                      <>
+                        <div className="space-y-2">
+                          {items.map((milestone) => (
+                            <div
+                              key={milestone.id}
+                              className={cn(
+                                "group flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer",
+                                milestone.done
+                                  ? "bg-green-50/50 border-green-200/60 opacity-70"
+                                  : "bg-card border-border hover:border-primary/30"
+                              )}
+                              onClick={() => toggleMilestone(milestone.id)}
+                            >
+                              <Checkbox
+                                checked={milestone.done}
+                                onCheckedChange={() => toggleMilestone(milestone.id)}
+                                className="shrink-0"
+                              />
+                              <span className={cn(
+                                "text-sm font-medium flex-1",
+                                milestone.done && "line-through text-muted-foreground"
+                              )}>
+                                {milestone.label}
+                              </span>
+
+                              {/* Inline date chip */}
+                              {editingMilestoneDate === milestone.id ? (
+                                <input
+                                  type="date"
+                                  className="text-xs border border-input rounded px-1.5 py-0.5 bg-background shrink-0"
+                                  defaultValue={milestone.targetDate || ""}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onBlur={(e) => updateMilestoneDate(milestone.id, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    e.stopPropagation();
+                                    if (e.key === "Enter") updateMilestoneDate(milestone.id, (e.target as HTMLInputElement).value);
+                                    if (e.key === "Escape") setEditingMilestoneDate(null);
+                                  }}
+                                  autoFocus
+                                />
+                              ) : (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingMilestoneDate(milestone.id); }}
+                                  className={cn(
+                                    "text-xs px-2 py-0.5 rounded-full border transition-colors shrink-0",
+                                    milestone.targetDate
+                                      ? "border-primary/30 text-primary bg-primary/5 hover:bg-primary/10"
+                                      : "border-dashed border-border text-muted-foreground/50 hover:border-primary/30 hover:text-muted-foreground"
+                                  )}
+                                >
+                                  {milestone.targetDate
+                                    ? new Date(milestone.targetDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                    : "+ date"
+                                  }
+                                </button>
+                              )}
+
+                              {milestone.done && (
+                                <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteMilestone(milestone.id); }}
+                                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all p-1 rounded shrink-0"
+                                title="Delete milestone"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+
+                        {/* Per-phase quick-add */}
+                        {addingToPhase === tf ? (
+                          <div className="flex items-center gap-2 pl-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              className="flex-1 h-8 text-sm border border-input rounded-md px-3 bg-background"
+                              placeholder="New milestone..."
+                              value={quickAddText}
+                              onChange={(e) => setQuickAddText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") addMilestoneToPhase(tf);
+                                if (e.key === "Escape") { setAddingToPhase(null); setQuickAddText(""); }
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => addMilestoneToPhase(tf)}
+                              className="h-8 px-3 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => { setAddingToPhase(null); setQuickAddText(""); }}
+                              className="h-8 px-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAddingToPhase(tf)}
+                            className="text-xs text-muted-foreground hover:text-accent transition-colors flex items-center gap-1 pl-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add item
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -416,54 +523,24 @@ export default function Planning() {
           {/* ── Right Column ── */}
           <div className="space-y-10">
 
-            {/* ── Section 3: Vendor Booking Status ── */}
+            {/* ── Section 3: Vendor Management Link ── */}
             <section className="space-y-5">
               <h2 className="text-xl font-serif font-bold text-primary flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-accent" /> Vendor Status
+                <Building2 className="w-5 h-5 text-accent" /> Vendors
               </h2>
-              <div className="space-y-3">
-                {vendors.map((vendor) => (
-                  <div key={vendor.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{vendor.category}</span>
-                      <select
-                        value={vendor.status}
-                        onChange={(e) => updateVendor(vendor.id, { status: e.target.value as VendorBooking["status"] })}
-                        className={cn(
-                          "h-6 rounded-full border-0 px-2 text-[11px] font-bold",
-                          BOOKING_STATUS_COLORS[vendor.status]
-                        )}
-                      >
-                        {Object.entries(BOOKING_STATUS_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>{label}</option>
-                        ))}
-                      </select>
+              <Link href="/vendors">
+                <a className="block bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:bg-primary/5 transition-all group">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-foreground">Vendor Management</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Track status, contracts, payments, and get negotiation tips for every vendor.
+                      </p>
                     </div>
-                    <Input
-                      className="h-8 text-sm"
-                      placeholder="Vendor name"
-                      value={vendor.vendorName}
-                      onChange={(e) => updateVendor(vendor.id, { vendorName: e.target.value })}
-                    />
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={vendor.contractSigned}
-                          onCheckedChange={(v) => updateVendor(vendor.id, { contractSigned: !!v })}
-                        />
-                        Contract signed
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={vendor.depositPaid}
-                          onCheckedChange={(v) => updateVendor(vendor.id, { depositPaid: !!v })}
-                        />
-                        Deposit paid
-                      </label>
-                    </div>
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-4" />
                   </div>
-                ))}
-              </div>
+                </a>
+              </Link>
             </section>
 
             {/* ── Section 4: Payment Timeline ── */}

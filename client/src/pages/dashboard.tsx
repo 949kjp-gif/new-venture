@@ -204,7 +204,8 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col lg:flex-row justify-between gap-12">
             <div className="flex-1 space-y-6">
               <div>
-                <div className="flex items-center gap-3 mb-4">
+                <p className="text-sm font-semibold uppercase tracking-wider opacity-70 mb-3">Budget Dashboard</p>
+              <div className="flex items-center gap-3 mb-4">
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-serif leading-tight">
                     You're on track,<br />Alex & Jordan.
                   </h1>
