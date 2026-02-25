@@ -46,6 +46,29 @@ interface CompareSlot {
   result: NormalizedQuote | null;
 }
 
+type EmailTemplateType =
+  | "initial-inquiry"
+  | "follow-up-no-response"
+  | "follow-up-after-quote"
+  | "booking-confirmation"
+  | "clarification"
+  | "negotiation";
+
+const TEMPLATE_LABELS: Record<EmailTemplateType, string> = {
+  "initial-inquiry": "Initial Inquiry",
+  "follow-up-no-response": "Follow-Up (No Response)",
+  "follow-up-after-quote": "Follow-Up After Quote",
+  "booking-confirmation": "Booking Confirmation",
+  clarification: "Request Clarification",
+  negotiation: "Negotiate Price",
+};
+
+const VENDOR_CATEGORIES = [
+  "Venue", "Catering", "Photography", "Videography",
+  "Florals & Decor", "Attire", "Hair & Makeup", "Entertainment",
+  "Transportation", "Officiant", "Cake & Desserts", "Other",
+];
+
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
 function mockAnalyze(vendorName: string, fileName: string): NormalizedQuote {
@@ -81,6 +104,94 @@ const SINGLE_MOCK: NormalizedQuote = {
 };
 
 // ─── Email template generators ────────────────────────────────────────────────
+
+function generateInitialInquiryEmail(
+  vendorName: string,
+  category: string,
+  date: string,
+  guestCount: string
+): string {
+  return `Subject: Wedding ${category} Inquiry – [Your Names], ${date || "[Wedding Date]"}
+
+Dear ${vendorName || "[Vendor Name]"} Team,
+
+My partner and I are planning our wedding${date ? ` on ${date}` : ""} and are looking for an exceptional ${category.toLowerCase()} vendor. We came across your work and were genuinely impressed.
+
+Here are a few details about our celebration:
+  - Date: ${date || "[Wedding Date]"}
+  - Guest Count: ${guestCount || "[Estimated Guests]"}
+  - Location: [Wedding Venue / City]
+  - Style: [Your Wedding Style]
+  - Budget Range: [$X,XXX – $X,XXX] for this category
+
+We'd love to learn more about your packages, availability for our date, and what makes your approach unique.
+
+Could you share your pricing guide or set up a brief call this week?
+
+We appreciate your time and look forward to hearing from you.
+
+Warm regards,
+[Your Names]
+[Phone / Email]`;
+}
+
+function generateFollowUpNoResponseEmail(vendorName: string, category: string): string {
+  return `Subject: Following Up – Wedding ${category} Inquiry
+
+Dear ${vendorName || "[Vendor Name]"} Team,
+
+I hope this message finds you well! I reached out about a week ago regarding our upcoming wedding and wanted to follow up in case my previous message got lost.
+
+We're still very interested in working with you for our ${category.toLowerCase()} needs and would love to hear back at your earliest convenience.
+
+Could you let us know if our date is available and whether you'd like to connect for a quick call?
+
+Thank you so much — we really admire your work!
+
+Warm regards,
+[Your Names]`;
+}
+
+function generateFollowUpAfterQuoteEmail(vendorName: string, category: string): string {
+  return `Subject: Questions About Your Proposal – [Your Names]
+
+Dear ${vendorName || "[Vendor Name]"} Team,
+
+Thank you so much for sending over your proposal — we've reviewed it carefully and have a few questions before we're ready to move forward.
+
+1. Package Inclusions: Could you clarify exactly what's included in the quoted price? We want to make sure we're not missing any add-ons or required extras.
+2. Payment Schedule: What does your typical payment timeline look like?
+3. Overtime / Additional Hours: Is there an option to extend coverage, and what is the hourly rate?
+4. Cancellation Policy: What happens if we need to adjust our plans?
+5. Substitutions: Will you personally be our ${category.toLowerCase()} vendor on the day, or might a colleague step in?
+
+We're genuinely excited about the possibility of working with you and hope to finalize things soon.
+
+Warm regards,
+[Your Names]`;
+}
+
+function generateBookingConfirmationEmail(vendorName: string, category: string): string {
+  return `Subject: Booking Confirmation – [Your Names] Wedding
+
+Dear ${vendorName || "[Vendor Name]"} Team,
+
+We're thrilled to officially confirm our booking with you for our wedding ${category.toLowerCase()}!
+
+Here are the agreed details:
+  - Event Date: [Wedding Date]
+  - Package: [Package Name]
+  - Agreed Total: $[Amount]
+  - Deposit Paid: $[Deposit Amount] on [Date]
+  - Remaining Balance Due: $[Balance] by [Due Date]
+
+Please let us know the next steps — we'd love to schedule a planning call and begin sharing our vision with you.
+
+We're so excited to work together and can't wait to create something truly special.
+
+Warm regards,
+[Your Names]`;
+}
 
 function generateClarificationEmail(q: NormalizedQuote): string {
   const feeLines = q.hiddenFees
@@ -237,13 +348,9 @@ function SingleQuoteResult({
           disabled={isSaved}
         >
           {isSaved ? (
-            <>
-              <CheckCircle2 className="w-4 h-4" /> Saved
-            </>
+            <><CheckCircle2 className="w-4 h-4" /> Saved</>
           ) : (
-            <>
-              <Plus className="w-4 h-4" /> Save to Library
-            </>
+            <><Plus className="w-4 h-4" /> Save to Library</>
           )}
         </Button>
         <Button size="lg" className="rounded-full px-8 gap-2" onClick={onDraftEmail}>
@@ -283,9 +390,7 @@ function CompareUploadSlot({
         <span className="text-sm font-semibold text-primary">{label}</span>
         <div className="flex items-center gap-2">
           {optional && (
-            <Badge variant="outline" className="text-xs">
-              Optional
-            </Badge>
+            <Badge variant="outline" className="text-xs">Optional</Badge>
           )}
           {slot.status === "analyzing" && (
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -368,14 +473,11 @@ function CompareResults({
     .filter((s) => s !== bestSlot && s.result)
     .reduce<CompareSlot | null>((acc, s) => {
       if (!acc?.result) return s;
-      return (s.result?.adjustedTotal ?? Infinity) < (acc.result?.adjustedTotal ?? Infinity)
-        ? s
-        : acc;
+      return (s.result?.adjustedTotal ?? Infinity) < (acc.result?.adjustedTotal ?? Infinity) ? s : acc;
     }, null);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-      {/* Recommendation */}
       {bestSlot?.result && (
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex gap-4 items-start">
           <Star className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -393,7 +495,6 @@ function CompareResults({
         </div>
       )}
 
-      {/* Side-by-side cards */}
       <div
         className={`grid grid-cols-1 gap-4 ${
           slots.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"
@@ -448,9 +549,7 @@ function CompareResults({
                     +${delta.toLocaleString()} vs. cheapest
                   </div>
                 )}
-
                 <Separator />
-
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Hidden Fees
@@ -469,9 +568,7 @@ function CompareResults({
                     </div>
                   ))}
                 </div>
-
                 <Separator />
-
                 <div className="space-y-2 pt-1">
                   <Button
                     size="sm"
@@ -511,6 +608,8 @@ function CompareResults({
   );
 }
 
+// ─── Expanded Email Dialog ─────────────────────────────────────────────────────
+
 function DraftEmailDialog({
   open,
   onClose,
@@ -520,20 +619,35 @@ function DraftEmailDialog({
   onClose: () => void;
   quote: NormalizedQuote | null;
 }) {
-  const [activeTab, setActiveTab] = useState<"clarify" | "negotiate">("clarify");
-  const [clarifyText, setClarifyText] = useState("");
-  const [negotiateText, setNegotiateText] = useState("");
+  const [activeTemplate, setActiveTemplate] = useState<EmailTemplateType>("clarification");
+  const [emailTexts, setEmailTexts] = useState<Record<EmailTemplateType, string>>({
+    "initial-inquiry": "",
+    "follow-up-no-response": "",
+    "follow-up-after-quote": "",
+    "booking-confirmation": "",
+    clarification: "",
+    negotiation: "",
+  });
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (quote) {
-      setClarifyText(generateClarificationEmail(quote));
-      setNegotiateText(generateNegotiationEmail(quote));
+      const vendorName = quote.vendorName;
+      setEmailTexts({
+        "initial-inquiry": generateInitialInquiryEmail(vendorName, "Venue", "", ""),
+        "follow-up-no-response": generateFollowUpNoResponseEmail(vendorName, "Venue"),
+        "follow-up-after-quote": generateFollowUpAfterQuoteEmail(vendorName, "Venue"),
+        "booking-confirmation": generateBookingConfirmationEmail(vendorName, "Venue"),
+        clarification: generateClarificationEmail(quote),
+        negotiation: generateNegotiationEmail(quote),
+      });
     }
   }, [quote]);
 
-  const currentText = activeTab === "clarify" ? clarifyText : negotiateText;
-  const setCurrentText = activeTab === "clarify" ? setClarifyText : setNegotiateText;
+  const currentText = emailTexts[activeTemplate];
+  const setCurrentText = (val: string) => {
+    setEmailTexts((prev) => ({ ...prev, [activeTemplate]: val }));
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentText);
@@ -547,50 +661,203 @@ function DraftEmailDialog({
         <DialogHeader>
           <DialogTitle className="font-serif text-primary">Draft Vendor Email</DialogTitle>
           <DialogDescription>
-            {quote?.vendorName} — review and edit before sending
+            {quote?.vendorName} — select a template, review, and edit before sending
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "clarify" | "negotiate")}
-          className="flex-1 flex flex-col min-h-0"
-        >
-          <TabsList className="shrink-0">
-            <TabsTrigger value="clarify">Request Clarification</TabsTrigger>
-            <TabsTrigger value="negotiate">Negotiate Price</TabsTrigger>
-          </TabsList>
-          <TabsContent value="clarify" className="flex-1 mt-3">
-            <Textarea
-              className="min-h-[300px] text-sm resize-none font-mono"
-              value={clarifyText}
-              onChange={(e) => setClarifyText(e.target.value)}
-            />
-          </TabsContent>
-          <TabsContent value="negotiate" className="flex-1 mt-3">
-            <Textarea
-              className="min-h-[300px] text-sm resize-none font-mono"
-              value={negotiateText}
-              onChange={(e) => setNegotiateText(e.target.value)}
-            />
-          </TabsContent>
-        </Tabs>
+        <div className="flex-1 flex flex-col min-h-0 space-y-3">
+          {/* Template selector */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email Template</Label>
+            <select
+              value={activeTemplate}
+              onChange={(e) => setActiveTemplate(e.target.value as EmailTemplateType)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {(Object.keys(TEMPLATE_LABELS) as EmailTemplateType[]).map((key) => (
+                <option key={key} value={key}>{TEMPLATE_LABELS[key]}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Template description */}
+          <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 border border-border">
+            {activeTemplate === "initial-inquiry" && "First contact with a new vendor — introduces your event and asks for availability and pricing."}
+            {activeTemplate === "follow-up-no-response" && "Polite follow-up to send 7-10 days after your initial inquiry with no reply."}
+            {activeTemplate === "follow-up-after-quote" && "Sent after receiving a quote — asks clarifying questions before making a decision."}
+            {activeTemplate === "booking-confirmation" && "Confirms your booking and outlines the agreed terms and next steps."}
+            {activeTemplate === "clarification" && "Asks the vendor to explain fees and charges not included in their quoted total."}
+            {activeTemplate === "negotiation" && "Friendly negotiation email when the all-in cost exceeds your budget."}
+          </div>
+
+          {/* Editable text */}
+          <Textarea
+            className="flex-1 min-h-[260px] text-sm resize-none font-mono"
+            value={currentText}
+            onChange={(e) => setCurrentText(e.target.value)}
+          />
+        </div>
 
         <div className="flex justify-end pt-4 border-t border-border mt-2">
           <Button onClick={handleCopy} className="gap-2 rounded-full">
             {copied ? (
-              <>
-                <CheckCircle2 className="w-4 h-4" /> Copied!
-              </>
+              <><CheckCircle2 className="w-4 h-4" /> Copied!</>
             ) : (
-              <>
-                <Copy className="w-4 h-4" /> Copy to Clipboard
-              </>
+              <><Copy className="w-4 h-4" /> Copy to Clipboard</>
             )}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Outreach Templates Panel ──────────────────────────────────────────────────
+
+function OutreachTemplatesPanel() {
+  const [vendorName, setVendorName] = useState("");
+  const [category, setCategory] = useState("Venue");
+  const [weddingDate, setWeddingDate] = useState("");
+  const [guestCount, setGuestCount] = useState("");
+  const [templateType, setTemplateType] = useState<EmailTemplateType>("initial-inquiry");
+  const [emailText, setEmailText] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let text = "";
+    switch (templateType) {
+      case "initial-inquiry":
+        text = generateInitialInquiryEmail(vendorName, category, weddingDate, guestCount);
+        break;
+      case "follow-up-no-response":
+        text = generateFollowUpNoResponseEmail(vendorName, category);
+        break;
+      case "follow-up-after-quote":
+        text = generateFollowUpAfterQuoteEmail(vendorName, category);
+        break;
+      case "booking-confirmation":
+        text = generateBookingConfirmationEmail(vendorName, category);
+        break;
+      case "clarification":
+        text = generateClarificationEmail({
+          id: "stub",
+          vendorName: vendorName || "[Vendor Name]",
+          fileName: "",
+          originalTotal: 25000,
+          adjustedTotal: 32000,
+          hiddenFees: [
+            { name: "22% Administrative Fee", amount: 5500, severity: "warning" },
+            { name: "Local Tax (8.875%)", amount: 2219, severity: "warning" },
+          ],
+        });
+        break;
+      case "negotiation":
+        text = generateNegotiationEmail({
+          id: "stub",
+          vendorName: vendorName || "[Vendor Name]",
+          fileName: "",
+          originalTotal: 25000,
+          adjustedTotal: 32000,
+          hiddenFees: [],
+        });
+        break;
+    }
+    setEmailText(text);
+  }, [templateType, vendorName, category, weddingDate, guestCount]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(emailText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Select a template type and fill in your details. The email auto-populates based on your inputs — edit freely before sending.
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm">Template Type</Label>
+          <select
+            value={templateType}
+            onChange={(e) => setTemplateType(e.target.value as EmailTemplateType)}
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {(Object.keys(TEMPLATE_LABELS) as EmailTemplateType[]).map((key) => (
+              <option key={key} value={key}>{TEMPLATE_LABELS[key]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-sm">Vendor Category</Label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {VENDOR_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-sm">Vendor / Business Name</Label>
+          <Input
+            placeholder="e.g. The Grand Ballroom"
+            value={vendorName}
+            onChange={(e) => setVendorName(e.target.value)}
+            className="h-10"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-sm">Wedding Date</Label>
+          <Input
+            placeholder="e.g. June 14, 2027"
+            value={weddingDate}
+            onChange={(e) => setWeddingDate(e.target.value)}
+            className="h-10"
+          />
+        </div>
+
+        {templateType === "initial-inquiry" && (
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-sm">Estimated Guest Count</Label>
+            <Input
+              placeholder="e.g. 120"
+              value={guestCount}
+              onChange={(e) => setGuestCount(e.target.value)}
+              className="h-10"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">Generated Email</Label>
+          <Button size="sm" variant="outline" className="gap-2 rounded-full text-xs" onClick={handleCopy}>
+            {copied ? (
+              <><CheckCircle2 className="w-3.5 h-3.5" /> Copied!</>
+            ) : (
+              <><Copy className="w-3.5 h-3.5" /> Copy</>
+            )}
+          </Button>
+        </div>
+        <Textarea
+          className="min-h-[320px] text-sm font-mono resize-none"
+          value={emailText}
+          onChange={(e) => setEmailText(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Edit the template above before copying. Fields in [brackets] need to be personalized.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -641,7 +908,6 @@ export default function QuoteNormalizer() {
   };
 
   const handleAnalyzeAll = () => {
-    // Snapshot slot data before any state mutation
     const snapshot = compareSlots.map((s) => ({
       vendorName: s.vendorName,
       fileName: s.fileName,
@@ -694,18 +960,13 @@ export default function QuoteNormalizer() {
             </p>
           </div>
 
-          {/* Quote Library */}
           {savedQuotes.length > 0 && (
             <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen}>
               <CollapsibleTrigger asChild>
                 <Button variant="outline" className="shrink-0 gap-2">
                   <FileText className="w-4 h-4" />
                   Quote Library ({savedQuotes.length})
-                  {libraryOpen ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
+                  {libraryOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 w-full md:w-72">
@@ -717,17 +978,11 @@ export default function QuoteNormalizer() {
                     >
                       <div>
                         <div className="text-sm font-medium">{q.vendorName}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[140px]">
-                          {q.fileName}
-                        </div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[140px]">{q.fileName}</div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-primary">
-                          ${q.adjustedTotal.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-muted-foreground line-through">
-                          ${q.originalTotal.toLocaleString()}
-                        </div>
+                        <div className="text-sm font-bold text-primary">${q.adjustedTotal.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground line-through">${q.originalTotal.toLocaleString()}</div>
                       </div>
                     </div>
                   ))}
@@ -742,6 +997,7 @@ export default function QuoteNormalizer() {
           <TabsList className="mb-6">
             <TabsTrigger value="single">Single Quote</TabsTrigger>
             <TabsTrigger value="compare">Compare Quotes</TabsTrigger>
+            <TabsTrigger value="templates">Email Templates</TabsTrigger>
           </TabsList>
 
           {/* ── Single Quote Tab ── */}
@@ -760,8 +1016,7 @@ export default function QuoteNormalizer() {
                           Analyzing proposal...
                         </div>
                         <p className="text-muted-foreground mt-2">
-                          Extracting line items, calculating hidden taxes, checking overtime
-                          clauses...
+                          Extracting line items, calculating hidden taxes, checking overtime clauses...
                         </p>
                       </div>
                     </div>
@@ -770,12 +1025,9 @@ export default function QuoteNormalizer() {
                       <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mx-auto ring-8 ring-primary/5">
                         <UploadCloud className="w-10 h-10 text-accent" />
                       </div>
-                      <h3 className="text-2xl font-serif font-bold text-primary">
-                        Drop Proposal Here
-                      </h3>
+                      <h3 className="text-2xl font-serif font-bold text-primary">Drop Proposal Here</h3>
                       <p className="text-muted-foreground leading-relaxed">
-                        Drag and drop a PDF, screenshot, or paste a link. Our AI normalizes the
-                        pricing structure instantly.
+                        Drag and drop a PDF, screenshot, or paste a link. Our AI normalizes the pricing structure instantly.
                       </p>
                       <Button
                         size="lg"
@@ -823,7 +1075,6 @@ export default function QuoteNormalizer() {
               ))}
             </div>
 
-            {/* Analyze button */}
             {readyCount >= 2 && doneSlots.length === 0 && (
               <div className="flex justify-center">
                 <Button
@@ -844,7 +1095,6 @@ export default function QuoteNormalizer() {
               </div>
             )}
 
-            {/* Results */}
             {doneSlots.length >= 2 && (
               <CompareResults
                 slots={doneSlots}
@@ -856,6 +1106,17 @@ export default function QuoteNormalizer() {
                 savedQuoteIds={savedQuotes.map((q) => q.id)}
               />
             )}
+          </TabsContent>
+
+          {/* ── Email Templates Tab ── */}
+          <TabsContent value="templates" className="space-y-6">
+            <div className="border-b border-border pb-4">
+              <h2 className="text-xl font-serif font-bold text-primary">Vendor Outreach Templates</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                6 professionally written email templates for every stage of vendor communication.
+              </p>
+            </div>
+            <OutreachTemplatesPanel />
           </TabsContent>
         </Tabs>
       </div>

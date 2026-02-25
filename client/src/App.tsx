@@ -9,6 +9,7 @@ import Home from "@/pages/home";
 import Builder from "@/pages/builder";
 import Dashboard from "@/pages/dashboard";
 import QuoteNormalizer from "@/pages/quote-normalizer";
+import Planning from "@/pages/planning";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/builder" component={Builder}/>
       <Route path="/dashboard" component={Dashboard}/>
       <Route path="/quote-normalizer" component={QuoteNormalizer}/>
+      <Route path="/planning" component={Planning}/>
       <Route component={NotFound} />
     </Switch>
   );

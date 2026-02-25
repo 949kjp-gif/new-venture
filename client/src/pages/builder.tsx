@@ -12,7 +12,7 @@ import {
   Sparkles, MapPin, Users, Star, CheckCircle2,
   Building2, UtensilsCrossed, Camera, Film, Flower2, Shirt, Wand2,
   Music2, Car, BookOpen, Mail, Cake, CalendarDays, Lightbulb,
-  ClipboardList, Plane, Gift, QrCode, Upload, X,
+  ClipboardList, Plane, Gift, QrCode, Upload, X, Plus, Trash2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -29,6 +29,13 @@ interface BudgetCategory {
   notes: string;
   quoteFile: File | null;
   quoteFileName: string;
+}
+
+interface EventDay {
+  id: string;
+  name: string;
+  date: string;
+  guestCount: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -69,6 +76,10 @@ const STYLE_OPTIONS: { value: WeddingStyle; label: string; description: string }
   { value: "luxury", label: "Luxury", description: "No-compromise, world-class vendors" },
 ];
 
+const EVENT_NAME_SUGGESTIONS = [
+  "Mehendi", "Sangeet", "Baraat", "Reception", "Wedding Ceremony", "Welcome Dinner",
+];
+
 function initCategories(): BudgetCategory[] {
   return CATEGORY_LIST.map((c) => ({
     ...c,
@@ -78,6 +89,10 @@ function initCategories(): BudgetCategory[] {
     quoteFile: null,
     quoteFileName: "",
   }));
+}
+
+function newEventDay(): EventDay {
+  return { id: Math.random().toString(36).slice(2), name: "", date: "", guestCount: "" };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -214,6 +229,10 @@ export default function Builder() {
   const [budget, setBudget] = useState("");
   const [flexibility, setFlexibility] = useState<Flexibility>("moderate");
 
+  // Multi-event support
+  const [isMultiEvent, setIsMultiEvent] = useState(false);
+  const [eventDays, setEventDays] = useState<EventDay[]>([newEventDay()]);
+
   // Step 2
   const [guestCount, setGuestCount] = useState([125]);
   const [style, setStyle] = useState<WeddingStyle>("premium");
@@ -245,6 +264,19 @@ export default function Builder() {
     });
   };
 
+  const addEventDay = () => {
+    if (eventDays.length >= 6) return;
+    setEventDays((prev) => [...prev, newEventDay()]);
+  };
+
+  const removeEventDay = (id: string) => {
+    setEventDays((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const updateEventDay = (id: string, updates: Partial<EventDay>) => {
+    setEventDays((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+  };
+
   return (
     <Shell>
       <div className="max-w-3xl mx-auto p-4 md:p-8 py-12">
@@ -258,8 +290,7 @@ export default function Builder() {
             Let's build a realistic foundation.
           </h1>
           <p className="text-lg text-muted-foreground">
-            Most couples start with an arbitrary number. We start with real market data based on
-            your vision.
+            Most couples start with an arbitrary number. We start with real market data based on your vision.
           </p>
         </div>
 
@@ -278,35 +309,13 @@ export default function Builder() {
             </div>
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl flex items-center gap-2">
-                {step === 1 && (
-                  <>
-                    <MapPin className="w-5 h-5 text-accent" /> The Basics
-                  </>
-                )}
-                {step === 2 && (
-                  <>
-                    <Users className="w-5 h-5 text-accent" /> Scale & Vision
-                  </>
-                )}
-                {step === 3 && (
-                  <>
-                    <Building2 className="w-5 h-5 text-accent" /> Your Vendors
-                  </>
-                )}
-                {step === 4 && (
-                  <>
-                    <Star className="w-5 h-5 text-accent" /> Top Priorities
-                  </>
-                )}
-                {step === 5 && (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 text-accent" /> Review & Generate
-                  </>
-                )}
+                {step === 1 && (<><MapPin className="w-5 h-5 text-accent" /> The Basics</>)}
+                {step === 2 && (<><Users className="w-5 h-5 text-accent" /> Scale & Vision</>)}
+                {step === 3 && (<><Building2 className="w-5 h-5 text-accent" /> Your Vendors</>)}
+                {step === 4 && (<><Star className="w-5 h-5 text-accent" /> Top Priorities</>)}
+                {step === 5 && (<><CheckCircle2 className="w-5 h-5 text-accent" /> Review & Generate</>)}
               </CardTitle>
-              <span className="text-sm text-muted-foreground">
-                Step {step} of {TOTAL_STEPS}
-              </span>
+              <span className="text-sm text-muted-foreground">Step {step} of {TOTAL_STEPS}</span>
             </div>
           </CardHeader>
 
@@ -316,9 +325,7 @@ export default function Builder() {
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="space-y-2">
                   <Label className="text-base">Where are you getting married?</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Location drives cost more than anything else.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Location drives cost more than anything else.</p>
                   <Input
                     className="h-12 text-base"
                     placeholder="e.g. New York, NY or Austin, TX"
@@ -329,9 +336,7 @@ export default function Builder() {
 
                 <div className="space-y-2">
                   <Label className="text-base">Approximate Wedding Date</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Even a rough timeframe helps us account for seasonal pricing.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Even a rough timeframe helps us account for seasonal pricing.</p>
                   <Input
                     className="h-12 text-base"
                     placeholder="e.g. June 2027 or Fall 2026"
@@ -340,14 +345,99 @@ export default function Builder() {
                   />
                 </div>
 
+                {/* Multi-event toggle */}
+                <div className="space-y-4 border border-border rounded-2xl p-5 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Is this a multi-event celebration?</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        For cultural weddings with Mehendi, Sangeet, Baraat, and more.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={isMultiEvent}
+                      onCheckedChange={setIsMultiEvent}
+                    />
+                  </div>
+
+                  {isMultiEvent && (
+                    <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Event Days</p>
+                      {eventDays.map((event, idx) => (
+                        <div key={event.id} className="bg-background border border-border rounded-xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-primary">Event {idx + 1}</span>
+                            {eventDays.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeEventDay(event.id)}
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Event Name</Label>
+                              <div className="relative">
+                                <Input
+                                  className="h-9 text-sm pr-8"
+                                  placeholder="e.g. Sangeet, Reception..."
+                                  value={event.name}
+                                  onChange={(e) => updateEventDay(event.id, { name: e.target.value })}
+                                  list={`event-suggestions-${event.id}`}
+                                />
+                                <datalist id={`event-suggestions-${event.id}`}>
+                                  {EVENT_NAME_SUGGESTIONS.map((s) => (
+                                    <option key={s} value={s} />
+                                  ))}
+                                </datalist>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Date</Label>
+                              <Input
+                                className="h-9 text-sm"
+                                placeholder="e.g. June 14, 2027"
+                                value={event.date}
+                                onChange={(e) => updateEventDay(event.id, { date: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Estimated Guest Count</Label>
+                            <Input
+                              type="number"
+                              className="h-9 text-sm"
+                              placeholder="e.g. 80"
+                              value={event.guestCount}
+                              onChange={(e) => updateEventDay(event.id, { guestCount: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      {eventDays.length < 6 && (
+                        <button
+                          type="button"
+                          onClick={addEventDay}
+                          className="w-full flex items-center gap-2 justify-center border border-dashed border-border rounded-xl py-3 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Another Event Day
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label className="text-base">
                     Target Total Budget{" "}
                     <span className="text-muted-foreground text-sm font-normal">(optional)</span>
                   </Label>
-                  <p className="text-sm text-muted-foreground">
-                    If you have a number in mind. Otherwise, we'll model from scratch.
-                  </p>
+                  <p className="text-sm text-muted-foreground">If you have a number in mind. Otherwise, we'll model from scratch.</p>
                   <div className="relative">
                     <span className="absolute left-4 top-3.5 text-muted-foreground">$</span>
                     <Input
@@ -376,9 +466,7 @@ export default function Builder() {
                         }`}
                       >
                         <div className="font-semibold text-sm text-primary mb-1">{opt.label}</div>
-                        <div className="text-xs text-muted-foreground leading-snug">
-                          {opt.description}
-                        </div>
+                        <div className="text-xs text-muted-foreground leading-snug">{opt.description}</div>
                       </button>
                     ))}
                   </div>
@@ -389,18 +477,13 @@ export default function Builder() {
             {/* ── Step 2: Scale & Vision ── */}
             {step === 2 && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                {/* Guest count */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-end">
                     <div>
                       <Label className="text-base">Expected Guest Count</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Every guest is a plate, a chair, and an invitation.
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">Every guest is a plate, a chair, and an invitation.</p>
                     </div>
-                    <span className="text-3xl font-serif font-bold text-primary">
-                      {guestCount[0]}
-                    </span>
+                    <span className="text-3xl font-serif font-bold text-primary">{guestCount[0]}</span>
                   </div>
                   <Slider
                     defaultValue={[125]}
@@ -418,12 +501,9 @@ export default function Builder() {
                   </div>
                 </div>
 
-                {/* Style */}
                 <div className="space-y-3 border-t border-border pt-6">
                   <Label className="text-base">Wedding Style</Label>
-                  <p className="text-sm text-muted-foreground">
-                    This shapes vendor tier, aesthetic scope, and allocation strategy.
-                  </p>
+                  <p className="text-sm text-muted-foreground">This shapes vendor tier, aesthetic scope, and allocation strategy.</p>
                   <div className="grid grid-cols-2 gap-3">
                     {STYLE_OPTIONS.map((opt) => (
                       <button
@@ -443,12 +523,9 @@ export default function Builder() {
                   </div>
                 </div>
 
-                {/* Vision */}
                 <div className="space-y-2 border-t border-border pt-6">
                   <Label className="text-base">Describe Your Vision</Label>
-                  <p className="text-sm text-muted-foreground">
-                    In your own words — what does the day feel and look like?
-                  </p>
+                  <p className="text-sm text-muted-foreground">In your own words — what does the day feel and look like?</p>
                   <Textarea
                     className="resize-none min-h-[100px] text-base"
                     placeholder={`"A warm garden ceremony at golden hour, followed by an intimate dinner — candles everywhere, fresh flowers, very personal."`}
@@ -457,15 +534,12 @@ export default function Builder() {
                   />
                 </div>
 
-                {/* Inspiration */}
                 <div className="space-y-2">
                   <Label className="text-base">
                     Inspiration Board{" "}
                     <span className="text-muted-foreground text-sm font-normal">(optional)</span>
                   </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Link a Pinterest board, Instagram collection, or any mood board URL.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Link a Pinterest board, Instagram collection, or any mood board URL.</p>
                   <Input
                     className="h-12 text-base"
                     placeholder="https://pinterest.com/yourboard"
@@ -480,8 +554,7 @@ export default function Builder() {
             {step === 3 && (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
                 <p className="text-sm text-muted-foreground">
-                  Toggle on what you're planning to hire. For each, optionally set a priority, add
-                  notes, or upload a quote you've already received.
+                  Toggle on what you're planning to hire. For each, optionally set a priority, add notes, or upload a quote you've already received.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {categories.map((cat) => (
@@ -504,9 +577,7 @@ export default function Builder() {
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div>
                   <Label className="text-base">Select Your Top 3 Priorities</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    We'll allocate more budget here and find savings in lower-priority areas.
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">We'll allocate more budget here and find savings in lower-priority areas.</p>
                 </div>
 
                 {enabledCategories.length === 0 ? (
@@ -549,9 +620,7 @@ export default function Builder() {
                         );
                       })}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {topPriorities.length}/3 selected
-                    </p>
+                    <p className="text-xs text-muted-foreground">{topPriorities.length}/3 selected</p>
                   </>
                 )}
               </div>
@@ -566,19 +635,20 @@ export default function Builder() {
                 <div className="bg-muted/20 rounded-xl p-4 border border-border">
                   <ReviewRow label="Location" value={locationVal || "—"} />
                   <ReviewRow label="Wedding Date" value={weddingDate || "—"} />
+                  {isMultiEvent && (
+                    <ReviewRow
+                      label="Multi-Event"
+                      value={`${eventDays.length} event day(s)`}
+                      detail={eventDays.filter((e) => e.name).map((e) => e.name).join(" · ") || undefined}
+                    />
+                  )}
                   <ReviewRow
                     label="Budget"
-                    value={
-                      budget
-                        ? `$${parseInt(budget).toLocaleString()}`
-                        : "Not set — we'll model from market data"
-                    }
+                    value={budget ? `$${parseInt(budget).toLocaleString()}` : "Not set — we'll model from market data"}
                   />
                   <ReviewRow
                     label="Flexibility"
-                    value={
-                      FLEXIBILITY_OPTIONS.find((f) => f.value === flexibility)?.label ?? "—"
-                    }
+                    value={FLEXIBILITY_OPTIONS.find((f) => f.value === flexibility)?.label ?? "—"}
                   />
                   <ReviewRow label="Guest Count" value={`${guestCount[0]} guests`} />
                   <ReviewRow
