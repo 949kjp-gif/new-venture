@@ -159,6 +159,17 @@ export default function Dashboard() {
 
   const visibleTradeoffs = TRADEOFFS.filter((t) => !dismissedSuggestions.includes(t.id));
 
+  const addCollaborator = () => {
+    if (!collabEmail.trim()) return;
+    setCollaborators((prev) => [...prev, { email: collabEmail.trim(), role: collabRole }]);
+    setCollabEmail("");
+    setCollabRole("Co-Planner");
+  };
+
+  const removeCollaborator = (email: string) => {
+    setCollaborators((prev) => prev.filter((c) => c.email !== email));
+  };
+
   return (
     <Shell>
       <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
