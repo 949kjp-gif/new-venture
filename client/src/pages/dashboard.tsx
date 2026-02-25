@@ -196,21 +196,6 @@ export default function Dashboard() {
                     <Users className="w-5 h-5" />
                   </Button>
                 </div>
-
-                {/* Mood Check-in moved up inside the hero section */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center gap-2 opacity-70">
-                    <Heart className="w-4 h-4" />
-                    <p className="text-xs font-semibold uppercase tracking-wider">How are you feeling today?</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {["😌 Calm", "🤩 Excited", "🤯 Overwhelmed", "🧐 Focused"].map((mood) => (
-                      <button key={mood} className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-all text-xs font-medium backdrop-blur-sm">
-                        {mood}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
